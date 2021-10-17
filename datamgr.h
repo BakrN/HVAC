@@ -1,22 +1,42 @@
-#include <stdio.h> 
-#include <datamgr.h> 
-#include <config.h> 
+/**
+ * \author Abubakr Ehab Samir Nada
+ */
+
+#ifndef DATAMGR_H_
+#define DATAMGR_H_
+
+#include <stdlib.h>
+#include <stdio.h>
+#include "config.h"
+
+#ifndef RUN_AVG_LENGTH
+#define RUN_AVG_LENGTH 5
+#endif
 #define SET_MAX_TEMP
+#ifndef SET_MAX_TEMP
+#error SET_MAX_TEMP not set
+#endif
 #define SET_MIN_TEMP
-//could implement this later with hashing 
-typedef struct {
+#ifndef SET_MIN_TEMP
+#error SET_MIN_TEMP not set
+#endif
 
-    uint16_t sensor_id;
-    double running_average;
-    time_t time_lastmodified;         // UTC timestamp as returned by time() - notice that the size of time_t is different on 32/64 bit machine   
-    // with size 
-} sensor_node;
+/*
+ * Use ERROR_HANDLER() for handling memory allocation problems, invalid sensor IDs, non-existing files, etc.
+ */
+#define ERROR_HANDLER(condition, ...)    do {                       \
+                      if (condition) {                              \
+                        printf("\nError: in %s - function %s at line %d: %s\n", __FILE__, __func__, __LINE__, __VA_ARGS__); \
+                        exit(EXIT_FAILURE);                         \
+                      }                                             \
+                    } while(0)
 
-
-
-// Should probably create an unordered map; 
-double prev_value[RUN_AVG_LENGTH];
-
+/**
+ *  This method holds the core functionality of your datamgr. It takes in 2 file pointers to the sensor files and parses them. 
+ *  When the method finishes all data should be in the internal pointer list and all log messages should be printed to stderr.
+ *  \param fp_sensor_map file pointer to the map file
+ *  \param fp_sensor_data file pointer to the binary data file
+ */
 void datamgr_parse_sensor_files(FILE *fp_sensor_map, FILE *fp_sensor_data);
 
 /**
@@ -55,4 +75,4 @@ time_t datamgr_get_last_modified(sensor_id_t sensor_id);
  */
 int datamgr_get_total_sensors();
 
-
+#endif  //DATAMGR_H_

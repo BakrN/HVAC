@@ -4,7 +4,7 @@
 
 #ifndef _DPLIST_H_
 #define _DPLIST_H_
-
+#include <stdint.h> 
 typedef enum {
     false, true
 } bool; // or use C99 #include <stdbool.h>
@@ -182,7 +182,9 @@ dplist_node_t *dpl_get_reference_of_element(dplist_t *list, void *element);
  * \param reference a pointer to a certain node in the list
  * \return the index of the given reference in the list
  */
-int dpl_get_index_of_reference(dplist_t *list, dplist_node_t *reference);
+int
+
+ dpl_get_index_of_reference(dplist_t *list, dplist_node_t *reference);
 
 /** Inserts a new list node containing an 'element' in the list at position 'reference'.
  * - If 'list' is is NULL, NULL is returned.
@@ -231,5 +233,7 @@ dplist_t *dpl_remove_at_reference(dplist_t *list, dplist_node_t *reference, bool
 dplist_t *dpl_remove_element(dplist_t *list, void *element, bool free_element);
 
 // ---- you can add your extra operators here ----//
-
+void  merge_sort(dplist_t* s_list, dplist_node_t* list); // head 
+dplist_node_t* merge(dplist_t* list, dplist_node_t*l1, dplist_node_t*l2); 
+void divide_linked_list(dplist_node_t* head, dplist_node_t** sub_list1, dplist_node_t**sub_list2); 
 #endif  // _DPLIST_H_
