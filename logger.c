@@ -10,6 +10,9 @@ int log_init(){
 }
 
 void log_event(event* event); 
-void log_message(char* message); 
 
-void log_destroy(); 
+void log_event(int fd ,event* event); // write to fifo
+
+void log_destroy(){
+    close(fd); 
+}

@@ -11,9 +11,8 @@ typedef struct {
     char* message; 
 } event; 
 
-int log_init();// Fork Proecess 
+int log_init();// Fork Process 
 
-void log_event(event* event); 
-void log_message(char* message); 
+void log_event(int fd ,event* event); // write to fifo
 
 void log_destroy(); 
