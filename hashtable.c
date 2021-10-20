@@ -4,7 +4,8 @@
 hash_table* create_table(void* (*initialize_entry)(void*entry),void (*add_table_entry)(void* entry) , void (*free_entry)(void*entry),uint32_t (*hash_key)(void* entry), void (*add_to_list)(sensor_data_t* data)) {
 
     hash_table* mp = malloc(sizeof(hash_table));
-    mp->entries = &(calloc(HASH_TABLE_SIZE, sizeof(void*)));
+    void* ptr = calloc(HASH_TABLE_SIZE, sizeof(void*)); 
+    mp->entries = &ptr;
     mp->add_table_entry = add_table_entry;  
     
     mp->free_entry = free_entry; 

@@ -8,7 +8,8 @@
 #include <stdint.h>
 #include <time.h>
 
-
+typedef uint16_t sensor_id_t ; 
+typedef double sensor_value_t ; 
 typedef struct {
     uint16_t id;
     double value;

@@ -1,7 +1,9 @@
+#define _GNU_SOURCE 
 #include <stdio.h>
 #include <stdint.h> 
 #include <lib/dplist.h>
 #include <config.h> 
+#include <malloc.h>
 #define HASH_TABLE_SIZE 255
 // This is a fixed size linked list map;  One for data mgr, one for shared buffer 
 
