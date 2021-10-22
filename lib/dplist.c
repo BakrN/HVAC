@@ -79,7 +79,7 @@ void dpl_free(dplist_t **list, bool free_element) {
 				dplist_node_t* tmp = current;  
 				current = current->next ; 
 
-				if(free_element){
+				if(free_element && (*list)->element_free != NULL){
 					(*(*list)->element_free)(&tmp->element); 
 				}	
 

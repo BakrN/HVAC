@@ -27,6 +27,9 @@
 
 typedef int (*callback_t)(void *, int, char **, char **);
 
+extern pthread_rwlock_t sbuffer_edit_mutex; 
+extern pthread_cond_t sbuffer_element_added; 
+
 /**
  * Make a connection to the database server
  * Create (open) a database with name DB_NAME having 1 table named TABLE_NAME  

@@ -7,12 +7,7 @@ The 3rd argument to the sqlite3_exec() callback is an array of pointers to strin
 one for each column. If an element of a result row is NULL then the corresponding string pointer for the sqlite3_exec()
  callback is a NULL pointer. The 4th argument to the sqlite3_exec() callback is an array of pointers to strings where each entry 
  represents the name of corresponding result column as obtained from sqlite3_column_name().*/
-/**
- * Make a connection to the database server
- * Create (open) a database with name DB_NAME having 1 table named TABLE_NAME  
- * \param clear_up_flag if the table existed, clear up the existing data when clear_up_flag is set to 1
- * \return the connection for success, NULL if an error occurs
- */
+
 
 
 
@@ -39,7 +34,12 @@ int create_table(DBCONN* db){
     
     return 0; 
 }
-
+/**
+ * Make a connection to the database server
+ * Create (open) a database with name DB_NAME having 1 table named TABLE_NAME  
+ * \param clear_up_flag if the table existed, clear up the existing data when clear_up_flag is set to 1
+ * \return the connection for success, NULL if an error occurs
+ */
 DBCONN *init_connection(char clear_up_flag){ 
     DBCONN* db; 
     int sq_open = sqlite3_open(TO_STRING(DB_NAME), &db); // should replace this with sqlite_openv2(DB_NAME, &db,SQLITE_OPEN_NOMUTEX ,NULL)
@@ -53,7 +53,7 @@ DBCONN *init_connection(char clear_up_flag){
             // check if table name exists else create it; 
     if(create_table(db)){
             // Table already exists;
-
+        
     }
     
     char* errmsg = 0; 

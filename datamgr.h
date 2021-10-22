@@ -7,6 +7,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <sbuffer.h>
 #include "config.h"
 
 #ifndef RUN_AVG_LENGTH
@@ -30,6 +31,12 @@
                         exit(EXIT_FAILURE);                         \
                       }                                             \
                     } while(0)
+
+
+extern pthread_rwlock_t sbuffer_edit_mutex; 
+extern pthread_cond_t sbuffer_element_added; 
+
+sbuffer_table_entry* datamgr_iterator = NULL; // used to get next packet; points to entry of sbuffer
 
 /**
  *  This method holds the core functionality of your datamgr. It takes in 2 file pointers to the sensor files and parses them. 
