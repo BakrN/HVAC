@@ -1,62 +1,80 @@
-#include <hashtable.h> 
+#include "hashtable.h" 
 
 
 hash_table* create_table(void (*free_entry)(void* entry),
-    int (*add_table_entry)(sensor_data_t* data), // 0 for success , -1 otherwise 
-    void (*initialize_table)(hash_table* map, void*arg), void* arg){
+    int (*add_table_entry)(void* map, sensor_data_t* data), // 0 for success , -1 otherwise 
+    void (*initialize_table)(void* map, void*arg), void* arg){
 
     hash_table* mp = malloc(sizeof(hash_table));
-    void* ptr = calloc(HASH_TABLE_SIZE, sizeof(void*)); 
-    mp->entries = &ptr;
+    
+    
+    mp->entries =malloc(HASH_TABLE_SIZE* sizeof(void*)); 
+    
+    char**entries = &mp->entries; 
+    
+
+    for( int i = 0; i < HASH_TABLE_SIZE; i++){
+        // entries[i] = mp->initialize_entry((void*)(entries[i])); 
+        entries[i] = NULL; 
+   
+    }
+      for( int i = 0; i < HASH_TABLE_SIZE; i++){
+        // entries[i] = mp->initialize_entry((void*)(entries[i])); 
+      
+   
+    }
+    
     mp->add_table_entry = add_table_entry;  
-    mp->initialize_table = initialize_table; 
     mp->free_entry = free_entry; 
+
     mp->capacity = HASH_TABLE_SIZE; 
     mp->count = 0; 
     
-    char** entries = (char**) mp->entries; 
-    for( int i = 0; i < HASH_TABLE_SIZE; i++){
-        // entries[i] = mp->initialize_entry((void*)(entries[i])); 
-        entries[i] = NULL ; // Set them NUll; 
-    }
+
+    
+    
+    
     if(initialize_table != NULL){
-        initialize_table(mp,arg); 
+         mp->initialize_table = initialize_table; 
+        (*mp->initialize_table)((void*)mp,arg); 
     }
-    if(mp->entries == NULL){
-        free(mp); 
-        return NULL; 
-    }
+ 
 
     return mp; 
 }
 void* get_entry_by_index(hash_table* map, uint32_t index){
-    char** entries = (char**) map->entries; 
-    return (void*)map->entries[index]; 
+
+    char** entries =  &map->entries; 
+    return entries[index]; 
 }
 void destroy_table(hash_table* map){
-    char** entries = (char**) map->entries;
-    for(int i = 0; i < map->capacity; i++){
-        if(entries[i] != NULL){
-            map->free_entry((void*)entries[i]);
+
+    char** entries =  &map->entries; 
+    for(int i = 2; i < map->capacity; i++){
+       if(entries[i] != NULL && map->free_entry != NULL){
+           printf("At index: %d , %d\n", i, (int)entries[i]); 
+           (*map->free_entry)((void*)entries[i]);
             entries[i] = NULL; 
         } 
-    }
+   }
+
     free(map->entries); 
     free(map); 
-    map == NULL; 
+    map = NULL; 
 }      
-int add_table_entry(hash_table*map, sensor_data_t* data){
-    return map->add_table_entry(data) ; 
+int add_entry(hash_table*map, sensor_data_t* data){
+  
+    return (*map->add_table_entry)((void*)map, data) ; 
 }
 //sbuffer function implementations
-int sbuffer_add_table_entry(hash_table* map, sensor_data_t* data){
+int sbuffer_add_table_entry(void* map, sensor_data_t* data){
     
-    // steps: check if key exists if not create it 
+    // steps: check if key exists if not create it /*
     uint32_t index = hash_key(data->id) ; 
     // searching if entry already exists (method of adding an entry is linear)
     if( get_entry_by_index(map, index) != NULL )
     {
-        sbuffer_table_entry* entry = (sbuffer_table_entry*)(get_entry_by_index(map, index)); 
+        sbuffer_table_entry* entry = (sbuffer_table_entry*)(get_entry_by_index((hash_table*)map, index)); 
         if(entry->key == data->id){
 
             // write lock/ mutex
@@ -91,7 +109,8 @@ int sbuffer_add_table_entry(hash_table* map, sensor_data_t* data){
                 entry->tbr_strmgr = 1;
          
                  //unlock
-                char** entries = (char**) map->entries; 
+                  
+                char** entries = &((hash_table*)map)->entries;  
                 entries[index] = (void*)entry; 
                 return 0;  
             }
@@ -124,6 +143,7 @@ int sbuffer_add_table_entry(hash_table* map, sensor_data_t* data){
         return -1; 
     }
   
+  
         // create new entry
     sbuffer_table_entry* new_entry = malloc(sizeof(sbuffer_table_entry));  
     new_entry->key = data->id; 
@@ -134,15 +154,18 @@ int sbuffer_add_table_entry(hash_table* map, sensor_data_t* data){
     new_entry->tbr_strmgr = 1;
      
     //unlock
-    char** entries = (char**) map->entries; 
+    char** entries = &((hash_table*)map)->entries; 
     entries[index] = (void*)new_entry; 
     return 0; 
+ 
 }
 void sbuffer_free_entry(void*entry){
-    sbuffer_table_entry* ptr = (sbuffer_table_entry*)entry; 
-    dpl_free(ptr->list, 1); 
-    ptr->list = NULL ;
-    free(ptr); 
+     sbuffer_table_entry* ptr = (sbuffer_table_entry*)entry; 
+    printf("Entered free entry even though I shouldn't\n", entry); 
+    //dpl_free(ptr->list, 1); 
+    //ptr->list = NULL ;
+    //free(ptr); 
+    //ptr = NULL; 
 }
 void sbuffer_element_free(void ** element){
     free(*element); // frees sensor_data_id pointer; 
@@ -150,47 +173,52 @@ void sbuffer_element_free(void ** element){
 }
 
 sbuffer_table_entry* get_next(hash_table* map, ENTRY_TYPE type){
-    pthread_rwlock_rdlock(&sbuffer_edit_mutex); 
-    char** entries = (char**) map->entries; 
+    //pthread_rwlock_rdlock(&sbuffer_edit_mutex); 
+   
+    char** entries =  &map->entries;  
     sbuffer_table_entry* entry; 
     for(int i =0; i < HASH_TABLE_SIZE; i++){
         entry = (sbuffer_table_entry*) entries[i];      
         if(type == DATA_ENTRY){
             if(entry != NULL && datamgr_iterator != entry && entry->tbr_datamgr> 0){
                 datamgr_iterator= entry; 
-                pthread_rwlock_unlock(&sbuffer_edit_mutex); 
+                //pthread_rwlock_unlock(&sbuffer_edit_mutex); 
                 return entry;
             }
         }
         else{
             if(entry != NULL && strmgr_iterator != entry && entry->tbr_strmgr> 0){
                 strmgr_iterator = entry; 
-                pthread_rwlock_unlock(&sbuffer_edit_mutex); 
+                //pthread_rwlock_unlock(&sbuffer_edit_mutex); 
                 return entry;
             }
         }
     }
-    pthread_rwlock_unlock(&sbuffer_edit_mutex); 
+    //pthread_rwlock_unlock(&sbuffer_edit_mutex); 
     return NULL;     
 }
 //sbuffer end 
 
 //datamgr implemnetations 
-void datamgr_initialize_table(hash_table* map, void* file){
+void datamgr_initialize_table(void* map, void* file){
    // read file // format: 
     // initialize running_avg to -273 
 
+    if(file == NULL){
+
+        return ; 
+    }
    FILE* fp_sensor_map = (FILE*) file; 
    
    char* line; 
    datamgr_table_entry* ptr ; 
    fopen(fp_sensor_map, 'r');  
-
+    // add errror 
    while(fgets( line, 255 , fp_sensor_map) != NULL){
        uint32_t key; 
        uint16_t sensor_id; 
        uint16_t room_id; 
-       char** entries = (char**)map->entries; 
+       char** entries = &((hash_table*)map)->entries; 
         
        sscanf(line,"%hu %hu\n", &room_id, &sensor_id); 
        uint32_t index = hash_key(sensor_id); 
@@ -246,21 +274,21 @@ void* datamgr_element_copy(void * element)
 {
     return NULL; 
 }
-int datmgr_element_compare(void * x, void* y)
+int datamgr_element_compare(void * x, void* y)
 {
     return 0; 
 }
-int datamgr_add_table_entry(hash_table* map, sensor_data_t* data){
+int datamgr_add_table_entry(void* map, sensor_data_t* data){
     // No mutex needed because no
     // steps: check if key exists if not create it 
     uint32_t index = hash_key(data->id) ; 
     // searching if entry already exists (method of adding an entry is linear)
     if( get_entry_by_index(map, index) != NULL )
     {
-        datamgr_table_entry* entry = (datamgr_table_entry*)(get_entry_by_index(map, index)); 
+        datamgr_table_entry* entry = (datamgr_table_entry*)(get_entry_by_index((hash_table*)map, index)); 
         if(entry->key == data->id){
             if(entry->current_average == 0 && entry->running_value_index == 0){
-                map->count++; 
+                ((hash_table*)map)->count++; 
             }
 
                      // Don't need mutex if only adding to index 0, just make sure you aren't checking prev
@@ -286,7 +314,7 @@ int datamgr_add_table_entry(hash_table* map, sensor_data_t* data){
         uint32_t search = index+1; 
         while( search!= index){
             // search for it linearly    
-            entry = (sbuffer_table_entry*)(get_entry_by_index(map, index)); 
+            entry = (sbuffer_table_entry*)(get_entry_by_index((hash_table*)map, index)); 
             if(entry == NULL){
                // NOt supposed to listen to this sensor id
                // stderr
@@ -299,7 +327,7 @@ int datamgr_add_table_entry(hash_table* map, sensor_data_t* data){
             else if (entry->key == data->id){
                 
             if(entry->current_average == 0 && entry->running_value_index == 0){
-                map->count++; 
+                ((hash_table*)map)->count++; 
             }
             datamgr_element* element = malloc(sizeof(datamgr_element)); 
             element->data =data; 

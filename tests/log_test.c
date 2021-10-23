@@ -1,5 +1,5 @@
 
-#include "logger.h"
+#include "../logger.h"
 #include <string.h>
 void main(void){
     pid_t logger = fork(); 

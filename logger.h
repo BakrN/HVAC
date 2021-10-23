@@ -7,12 +7,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <malloc.h> 
-typedef struct {
-    uint32_t sequence_number; 
-    char* timestamp; 
-    char* message; 
-} log_msg; 
-
+#include <config.h>
 static int log_fd; 
 
 

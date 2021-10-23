@@ -6,7 +6,7 @@
 #define _CONFIG_H_
 
 #include <stdint.h>
-#include <lib/dplist.h>
+#include "lib/dplist.h"
 #include <time.h>
 
 typedef uint16_t sensor_id_t ; 
@@ -46,5 +46,10 @@ typedef struct {
     uint32_t tbr_datamgr; 
     uint32_t tbr_strmgr; 
 } sbuffer_table_entry; 
+typedef struct {
+    uint32_t sequence_number; 
+    time_t* timestamp; 
+    char* message; 
+} log_msg; 
 
 #endif /* _CONFIG_H_ */
