@@ -15,7 +15,7 @@ typedef time_t sensor_ts_t;
 typedef struct {
     uint16_t id;
     double value;
-    time_t ts;
+    long ts;
 } sensor_data_t;
 typedef enum {
     DATA_ENTRY, STORE_ENTRY

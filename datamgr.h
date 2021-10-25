@@ -7,17 +7,18 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <sbuffer.h>
+#include "sbuffer.h"
 #include "config.h"
+#include "hashtable.h"
 
 #ifndef RUN_AVG_LENGTH
 #define RUN_AVG_LENGTH 5
 #endif
-#define SET_MAX_TEMP
+#define SET_MAX_TEMP 40
 #ifndef SET_MAX_TEMP
 #error SET_MAX_TEMP not set
 #endif
-#define SET_MIN_TEMP
+#define SET_MIN_TEMP 5
 #ifndef SET_MIN_TEMP
 #error SET_MIN_TEMP not set
 #endif
@@ -36,7 +37,8 @@
 extern pthread_rwlock_t sbuffer_edit_mutex; 
 extern pthread_cond_t sbuffer_element_added; 
 
-sbuffer_table_entry* datamgr_iterator = NULL; // used to get next packet; points to entry of sbuffer
+
+
 
 /**
  *  This method holds the core functionality of your datamgr. It takes in 2 file pointers to the sensor files and parses them. 
@@ -81,5 +83,20 @@ time_t datamgr_get_last_modified(sensor_id_t sensor_id);
  *  \return the total amount of sensors
  */
 int datamgr_get_total_sensors();
+
+/**
+ * Hash table implementations and dp list related functions 
+ * */ 
+void datamgr_element_free(void ** element); 
+void* datamgr_element_copy(void * element); 
+int datamgr_element_compare(void * x, void* y); 
+
+void datamgr_initialize_table(void* map, void* file); 
+int datamgr_add_table_entry(void* map, sensor_data_t* data); 
+void datamgr_free_entry(void*entry); 
+
+
+//* TESTING FUNCS TO BE REMOVED LATER*/ 
+dplist_t* datamgr_get_list_by_key(uint32_t key); 
 
 #endif  //DATAMGR_H_

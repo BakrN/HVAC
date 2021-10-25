@@ -11,7 +11,7 @@ void main(void){
     
     msg->sequence_number = 0; 
     msg->timestamp = 0; 
-    int fd = open("filename.log", O_WRONLY); 
+    int fd = open("gateway.log", O_WRONLY); 
     int i ; 
     //while(1){
     char* buffer[255]; 

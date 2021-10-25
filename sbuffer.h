@@ -14,18 +14,7 @@
 
 /*hash table implemenetation*/ 
 
-    void sbuffer_add_entry(void* entry) {
-        
-    }
-    void* sbuffer_initialize_entry(void*entry){
-        
-    }
-    void sbuffer_free_entry( void* entry){
 
-    }
-    void sbuffer_add_to_list(sensor_data_t* data){ 
-
-    }
 
 
 

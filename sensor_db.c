@@ -9,8 +9,10 @@ one for each column. If an element of a result row is NULL then the correspondin
  represents the name of corresponding result column as obtained from sqlite3_column_name().*/
 
 
-
-
+extern pthread_rwlock_t sbuffer_edit_mutex; 
+extern pthread_cond_t sbuffer_element_added; 
+ 
+//sbuffer_table_entry* strmgr_iterator;
 /* Table should contain: \
 id: automatically generated unique id (AUTOINCREMENT)
 •sensor_id (INT)
@@ -25,6 +27,7 @@ int create_table(DBCONN* db){
     char* cr_val = " (id INT PRIMARY KEY AUTOINCREMENT,sensor_id INT NOT NULL,sensor_value DECIMAL(4,2) DEFAULT 0,timestamp DATETIME DEFAULT 0) [WITHOUT ROWID]"; 
     strcat(cr, cr_val); 
     int sq_success = sqlite3_exec(db, cr, NULL,NULL,NULL); 
+    printf("%s /n", cr_val); 
     free(cr_val); 
     free(cr); 
     if(sq_success != SQLITE_OK){
@@ -65,6 +68,7 @@ DBCONN *init_connection(char clear_up_flag){
         free(sql_clear); 
         if(sq_success != SQLITE_OK){
             // loggg error message
+            
             disconnect(db); 
             
             return NULL; 
