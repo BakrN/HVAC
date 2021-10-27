@@ -1,6 +1,7 @@
 #ingnore the default executable, e.g. a.out or files in the build folder
 a.out
 build/
+include/ 
 
 #ignore all zip files
 *.zip
@@ -13,5 +14,7 @@ build/
 *.vs
 .vscode
 *.vscode
+*.exe
 #add any other files or filetypes you do not want to appear in your repo in this file
 *.pdf
+

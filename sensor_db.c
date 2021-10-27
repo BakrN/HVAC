@@ -9,8 +9,8 @@ one for each column. If an element of a result row is NULL then the correspondin
  represents the name of corresponding result column as obtained from sqlite3_column_name().*/
 
 
-extern pthread_rwlock_t sbuffer_edit_mutex; 
-extern pthread_cond_t sbuffer_element_added; 
+// extern pthread_rwlock_t sbuffer_edit_mutex; 
+// extern pthread_cond_t sbuffer_element_added; 
  
 //sbuffer_table_entry* strmgr_iterator;
 /* Table should contain: \
@@ -22,9 +22,9 @@ id: automatically generated unique id (AUTOINCREMENT)
 
 int create_table(DBCONN* db){
 
-    char* cr = "CREATE TABLE [IF NOT EXISTS] "; 
+    char* cr = "CREATE TABLE IF NOT EXISTS "; 
     strcat(cr,TO_STRING(TABLE_NAME)); 
-    char* cr_val = " (id INT PRIMARY KEY AUTOINCREMENT,sensor_id INT NOT NULL,sensor_value DECIMAL(4,2) DEFAULT 0,timestamp DATETIME DEFAULT 0) [WITHOUT ROWID]"; 
+    char* cr_val = " (id INTEGER PRIMARY KEY AUTOINCREMENT,sensor_id INTEGER NOT NULL,sensor_value DECIMAL(4,2) DEFAULT 0,timestamp DATETIME DEFAULT 0) ;"; 
     strcat(cr, cr_val); 
     int sq_success = sqlite3_exec(db, cr, NULL,NULL,NULL); 
     printf("%s /n", cr_val); 
@@ -43,7 +43,7 @@ int create_table(DBCONN* db){
  * \param clear_up_flag if the table existed, clear up the existing data when clear_up_flag is set to 1
  * \return the connection for success, NULL if an error occurs
  */
-DBCONN *init_connection(char clear_up_flag){ 
+DBCONN *strmgr_init_connection(char clear_up_flag){ 
     DBCONN* db; 
     int sq_open = sqlite3_open(TO_STRING(DB_NAME), &db); // should replace this with sqlite_openv2(DB_NAME, &db,SQLITE_OPEN_NOMUTEX ,NULL)
     if(sq_open != SQLITE_OK){
@@ -86,12 +86,13 @@ DBCONN *init_connection(char clear_up_flag){
  * \param conn pointer to the current connection
  */
 void disconnect(DBCONN *conn){
-    int sq_close = sqlist3_close(TO_STRING(DB_NAME)); 
+  int sq_close ; 
+   sqlist3_close(conn); 
     if(sq_close != SQLITE_OK){
-        // Log: failed to close db  
-        return ; 
+       // Log: failed to close db  
+       return ; 
     } 
-    // LOG: successfully closed db; 
+     //LOG: successfully closed db; 
 }
 
 /**
