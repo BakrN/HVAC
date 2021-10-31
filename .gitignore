@@ -1,10 +1,12 @@
 #ingnore the default executable, e.g. a.out or files in the build folder
-a.out
+*.out
 build/
 include/ 
 
 #ignore all zip files
 *.zip
+
+ *.log
 
 #ignore all intermediate files or other compiled output
 *.o

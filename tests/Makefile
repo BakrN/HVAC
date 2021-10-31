@@ -1,9 +1,10 @@
 CC = gcc
-CFLAGS = -DDEBUG -Wall 
+CFLAGS = -DDEBUG -Wall -I../ 
+LIBS = -lsqlite3 -pthread 
 #DEPS = ../datamgr.h ../hashtable.h ../lib/dplist.h 
 #OBJ = datamgr_test.o ../hashtable.o ../datamgr.o ../lib/dplist.o
 DEPS = ../sensor_db.h ../logger.h 
-OBJ = strmgr_test.o ../sensor_db.o ../logger.o
+OBJ = strgmgr_test.o ../sensor_db.o ../logger.o
 
 %.o : %.c %{DEPS} 
 	$(CC)-c -o $@ $< $(CFLAGS)
@@ -13,13 +14,12 @@ OBJ = strmgr_test.o ../sensor_db.o ../logger.o
 	 
 
 strmgr_test: $(OBJ) 
-	$(CC)  $(OBJ) $(CLAGS) -o strmgr_test 
+	$(CC)  $(OBJ) $(CLAGS) $(LIBS) -o strg_test 
+	
 
 
 .PHONY: clean datamgr_run_test
-datamgr_run_test: 
-	./datamgr_test
-
 
 clean: 
-	rm datamgr_test $(OBJ)
+	rm  gateway.log strg_test $(OBJ)
+	

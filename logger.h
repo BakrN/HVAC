@@ -6,12 +6,12 @@
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <malloc.h> 
-#include <config.h>
+#include "config.h"
+#include <signal.h>
 static int log_fd; 
-
 
 int log_init();// Fork Process 
 
 void log_event(int write_fd, log_msg* event); 
 void log_destroy(); 
+ 

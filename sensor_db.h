@@ -4,14 +4,17 @@
 
 #ifndef _SENSOR_DB_H_
 #define _SENSOR_DB_H_
-
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include "config.h"
-#include "sqlite3.h"
-
+#include <sqlite3.h> 
+#include "logger.h"
 // stringify preprocessor directives using 2-level preprocessor magic
 // this avoids using directives like -DDB_NAME=\"some_db_name\"
+#ifndef DB_LOG_SEQUENCE_NO
+#define DB_LOG_SEQUENCE_NO 003
+#endif
 #define REAL_TO_STRING(s) #s
 #define TO_STRING(s) REAL_TO_STRING(s)    //force macro-expansion on s before stringify s
 
