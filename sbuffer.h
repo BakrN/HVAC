@@ -7,7 +7,9 @@
 #define _SBUFFER_H_
 
 #include "config.h"
+#include "hashtable.h"
 
+#include <pthread.h>
 #define SBUFFER_FAILURE -1
 #define SBUFFER_SUCCESS 0
 #define SBUFFER_NO_DATA 1
@@ -16,12 +18,15 @@
 
 
 
-
-
 //###############################################
 
 
-typedef struct sbuffer sbuffer_t;
+typedef hash_table sbuffer_t;
+void sbuffer_element_free(void ** element); 
+
+int sbuffer_add_table_entry(void* map, sensor_data_t* data); 
+void sbuffer_free_entry(void*entry); 
+sbuffer_table_entry* get_next(hash_table* map, ENTRY_TYPE type); 
 
 /**
  * Allocates and initializes a new shared buffer

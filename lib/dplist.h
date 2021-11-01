@@ -12,6 +12,10 @@ typedef enum {
 /**
  * dplist_t is a struct containing at least a head pointer to the start of the list;
  */
+struct dplist_node {
+	dplist_node_t *prev, *next;
+	void *element;
+};
 typedef struct dplist dplist_t;
 
 typedef struct dplist_node dplist_node_t;

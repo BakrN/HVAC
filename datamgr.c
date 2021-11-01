@@ -2,8 +2,10 @@
 #include "datamgr.h" 
 
 
-sbuffer_table_entry* datamgr_iterator = NULL; 
 
+extern pthread_rwlock_t connmgr_drop_sensor; 
+extern pthread_rwlock_t sbuffer_edit_mutex; 
+extern pthread_cond_t sbuffer_element_added; 
 static hash_table* datamgr_table = NULL; 
 
 

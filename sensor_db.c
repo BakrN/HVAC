@@ -18,6 +18,8 @@ id: automatically generated unique id (AUTOINCREMENT)
 •sensor_id (INT)
 •sensor_value (DECIMAL(4,2))
 •timestamp (TIMESTAMP)*/ 
+extern pthread_rwlock_t sbuffer_edit_mutex; 
+extern pthread_cond_t sbuffer_element_added; 
 static int DB_GATEWAY_FD; 
 log_msg* DB_LOG_MSG; 
 // arg = 1st arg relayed back, int = no.columns,  1st char** array of pointers to strings, one for each column, 2nd char is column names

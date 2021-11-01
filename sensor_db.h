@@ -32,6 +32,7 @@ typedef int (*callback_t)(void *, int, char **, char **);
 
 
 
+
 /**
  * Make a connection to the database server
  * Create (open) a database with name DB_NAME having 1 table named TABLE_NAME  

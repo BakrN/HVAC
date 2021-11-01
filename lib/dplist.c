@@ -39,10 +39,7 @@
  * The real definition of struct list / struct node
  */
 
-struct dplist_node {
-	dplist_node_t *prev, *next;
-	void *element;
-};
+
 
 struct dplist {
 	dplist_node_t *head;

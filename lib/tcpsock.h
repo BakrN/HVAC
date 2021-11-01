@@ -16,7 +16,13 @@
 #define    TCP_MEMORY_ERROR         5   // mem alloc error
 
 #define MAX_PENDING 10
-
+struct tcpsock {
+    long cookie;        /**< if the socket is bound, cookie should be equal to MAGIC_COOKIE */
+    // remark: the use of magic cookies doesn't guarantee a 'bullet proof' test
+    int sd;             /**< socket descriptor */
+    char *ip_addr;      /**< socket IP address */
+    int port;           /**< socket port number */
+};
 typedef struct tcpsock tcpsock_t;
 
 /**

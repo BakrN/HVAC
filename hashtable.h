@@ -1,7 +1,7 @@
 #define _GNU_SOURCE 
 #include <stdio.h>
 #include <stdint.h> 
-#include "lib/dplist.h"
+
 #include "config.h"
 #include <malloc.h>
 #include <pthread.h>
@@ -24,25 +24,12 @@ typedef struct {
     // capacity is always decided by hash table size 
 } hash_table;  
 
-// Sbuffer funcs
-void sbuffer_element_free(void ** element); 
-
-int sbuffer_add_table_entry(void* map, sensor_data_t* data); 
-void sbuffer_free_entry(void*entry); 
-//sbuffer end
-
-
-// Datamgr funcs
-
-//end
-
 // Core functions
 hash_table* create_table(void (*free_entry)(void* entry),
     int (*add_table_entry)(void* map, sensor_data_t* data), // 0 for success , -1 otherwise 
     void (*initialize_table)(void* map, void*arg), void* arg) ; 
 void destroy_table(hash_table* map);
 uint32_t hash_key(uint32_t id); // FNV_PRIME
-sbuffer_table_entry* get_next(hash_table* map, ENTRY_TYPE type); // iterator function for sbuffer
 int add_entry(hash_table*map, sensor_data_t* data); 
 void* get_entry_by_index(hash_table* map, uint32_t index); 
 void* get_entry_by_key(hash_table* map, uint32_t key); // this assumes no collision. implement later with collision assumption
