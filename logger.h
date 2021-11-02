@@ -1,3 +1,4 @@
+#pragma once 
 #define _GNU_SOURCE
 #include <stdint.h>
 #include <stdio.h>
@@ -8,6 +9,7 @@
 #include <fcntl.h>
 #include "config.h"
 #include <signal.h>
+
 static int log_fd; 
 
 int log_init();// Fork Process 

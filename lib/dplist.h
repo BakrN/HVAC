@@ -12,14 +12,14 @@ typedef enum {
 /**
  * dplist_t is a struct containing at least a head pointer to the start of the list;
  */
+
+typedef struct dplist dplist_t;
+
+typedef struct dplist_node dplist_node_t;
 struct dplist_node {
 	dplist_node_t *prev, *next;
 	void *element;
 };
-typedef struct dplist dplist_t;
-
-typedef struct dplist_node dplist_node_t;
-
 /* General remark on error handling
  * All functions below will:
  * - use assert() to check if memory allocation was successfully.

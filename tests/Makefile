@@ -3,8 +3,11 @@ CFLAGS = -DDEBUG -Wall -I../
 LIBS = -lsqlite3 -pthread 
 #DEPS = ../datamgr.h ../hashtable.h ../lib/dplist.h 
 #OBJ = datamgr_test.o ../hashtable.o ../datamgr.o ../lib/dplist.o
-DEPS = ../sensor_db.h ../logger.h 
-OBJ = strgmgr_test.o ../sensor_db.o ../logger.o
+#DEPS = ../sensor_db.h ../logger.h 
+#OBJ = strgmgr_test.o ../sensor_db.o ../logger.o
+
+DEPS = ../connmgr.h ../lib/tcpsock.h ../lib/dplist.h ../sbuffer.h ../hashtable.h ../logger.h
+OBJ = connmgr_test.o ../connmgr.o ../lib/tcpsock.o ../lib/dplist.o ../sbuffer.o ../hashtable.o ../logger.o
 
 %.o : %.c %{DEPS} 
 	$(CC)-c -o $@ $< $(CFLAGS)
@@ -13,13 +16,13 @@ OBJ = strgmgr_test.o ../sensor_db.o ../logger.o
 #	$(CC)  $(OBJ) $(CLAGS) -o datamgr_test
 	 
 
-strmgr_test: $(OBJ) 
-	$(CC)  $(OBJ) $(CLAGS) $(LIBS) -o strg_test 
+connmgr_test: $(OBJ) 
+	$(CC)  $(OBJ) $(CLAGS) $(LIBS) -o connmgrtest 
 	
 
 
-.PHONY: clean datamgr_run_test
+#.PHONY: clean 
 
-clean: 
-	rm  gateway.log strg_test $(OBJ)
+#clean: 
+#	rm  gateway.log connmgrtest $(OBJ)
 	
