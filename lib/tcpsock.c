@@ -14,7 +14,6 @@
 #include <stdio.h>
 #include "tcpsock.h"
 
-//#define DEBUG
 
 #ifdef DEBUG
 #define TCP_DEBUG_PRINTF(condition,...)									                        \

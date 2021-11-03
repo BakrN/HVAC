@@ -50,9 +50,7 @@ int log_init(){
         while(1){
             if(read(log_fd, buffer, 200) <= 0){
                // nothing to read
-               #ifdef DEBUG
-               printf("1"); 
-               #endif
+          
 
             }
             else{

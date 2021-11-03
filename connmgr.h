@@ -11,7 +11,7 @@
 #include <malloc.h> 
 
 #include <pthread.h>
-#define TIMEOUT 120 // IN SECONDS
+#define TIMEOUT 10 // IN SECONDS
 #define PORT 1234
 // list of sensors with last timestamp
 // list of client tcp sockets to store data in (might be better to auto write to sbuffer once data is received )

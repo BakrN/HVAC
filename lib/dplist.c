@@ -350,10 +350,11 @@ dplist_node_t *dpl_get_reference_of_element(dplist_t *list, void *element){
 	if(list == NULL || list->head == NULL ){return NULL;} 
 	dplist_node_t* current = list->head; 	
 	while(current != NULL){
+	
 		if(list->element_compare(element, current->element) == 0){
 			return current; 
 		}
-		 
+		current = current->next ;  
 	}
 	return NULL; 
 	}

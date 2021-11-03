@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include "config.h"
 #include "lib/tcpsock.h"
-
+#define LOOPS 5
 // conditional compilation option to control the number of measurements this sensor node wil generate
 #if (LOOPS > 1)
 #define UPDATE(i) (i--)
@@ -105,10 +105,10 @@ int main(int argc, char *argv[]) {
         UPDATE(i);
     }
 
-    if (tcp_close(&client) != TCP_NO_ERROR) exit(EXIT_FAILURE);
+    if (tcp_close(&client) != TCP_NO_ERROR){ exit(EXIT_FAILURE);}
 
     LOG_CLOSE();
-
+printf("Success CLOSING CLINET\n");
     exit(EXIT_SUCCESS);
 }
 

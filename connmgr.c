@@ -7,9 +7,9 @@ tcpsock_t *server;
 dplist_t *socket_list;
 struct pollfd *pollfds;
 sbuffer_t *test;
-log_msg* CONN_LOG_MSG;
+log_msg *CONN_LOG_MSG;
 int data_conn_pipefds[2];
-int CONN_GATEWAY_FD; 
+int CONN_GATEWAY_FD;
 typedef struct
 {
     tcpsock_t *socket;
@@ -19,6 +19,7 @@ typedef struct
 
 int tcp_element_compare(void *x, void *y)
 {
+
     if (((tcp_element *)x)->socket->sd == ((tcp_element *)y)->socket->sd)
     {
         return 0;
@@ -39,24 +40,22 @@ void tcp_element_free(void **element)
 
 void connmgr_init(void *port_number)
 {
-     CONN_LOG_MSG = malloc(sizeof(log_msg)); 
-     CONN_LOG_MSG->sequence_number = 1; 
-     
-     CONN_GATEWAY_FD = open("gateway.log", O_WRONLY); 
+    CONN_LOG_MSG = malloc(sizeof(log_msg));
+    CONN_LOG_MSG->sequence_number = 1;
+    CONN_GATEWAY_FD = open("gateway.log", O_WRONLY);
+    socket_list = dpl_create(NULL, tcp_element_free, &tcp_element_compare);
     pthread_rwlock_init(&connmgr_drop_sensor, NULL);
     if (!pipe2(data_conn_pipefds, O_NONBLOCK))
     {
-        CONN_LOG_MSG->timestamp = time(0); 
-          asprintf(&CONN_LOG_MSG->message, "Datamgr Connmgr Pipe was opened successfully\n"); 
-          log_event(CONN_GATEWAY_FD,CONN_LOG_MSG); 
-          free(CONN_LOG_MSG->message);
+        CONN_LOG_MSG->timestamp = time(0);
+        asprintf(&CONN_LOG_MSG->message, "Datamgr Connmgr Pipe was opened successfully\n");
+        log_event(CONN_GATEWAY_FD, CONN_LOG_MSG);
+        free(CONN_LOG_MSG->message);
     }
-     
-   
+    
     //./sensor_test 101 15 127.0.0.1 1234
     connmgr_listen_to_port(*(int *)port_number, &test);
     // open pipe to datagmr
-
 }
 void connmgr_listen_to_port(int port_number, sbuffer_t **buffer)
 {
@@ -76,7 +75,6 @@ void connmgr_listen_to_port(int port_number, sbuffer_t **buffer)
     int conn_count = 0;
     tcp_get_sd(server, &(pollfds[0].fd));
     pollfds[0].events = POLLHUP | POLLIN;
-    socket_list = dpl_create(NULL, tcp_element_free, tcp_element_compare);
     // add read pipe to poll
     pollfds[1].fd = data_conn_pipefds[0];
     pollfds[1].events = POLLIN;
@@ -84,40 +82,59 @@ void connmgr_listen_to_port(int port_number, sbuffer_t **buffer)
     tcp_element *temp = malloc(sizeof(tcp_element));
     temp->socket = malloc(sizeof(tcpsock_t));
 
-    while (poll(pollfds, conn_count + 1, 5000) > 0 /*|| conn_count*/)
+    while (poll(pollfds, conn_count + 2, 20000) > 0 || conn_count)
     { // revents are cleared by poll function
-        
-        if (pollfds[0].revents == POLLIN && tcp_wait_for_connection(server, &client) != TCP_NO_ERROR)
+#ifdef DEBUG
+        printf("Current clients count: %d \n", conn_count);
+#endif
+        if (pollfds[0].revents & POLLIN)
         {
-        #ifdef DEBUG
-            printf("INSIDE WHILE LOOP\n"); 
-        #endif
-            // log failed to create socket
-        }
-        else
-        {
-            // successfully created new socket;
-            tcp_get_sd(client, &(pollfds)[conn_count].fd);
-            tcp_element *entry = malloc(sizeof(tcp_element));
-            entry->socket = client;
-            entry->sensor_id = 0;
-            entry->last_timestamp = time(0);
-            dpl_insert_at_index(socket_list, entry, 0, 0);
-            if (!oldest_sock)
+            if (tcp_wait_for_connection(server, &client) == TCP_NO_ERROR)
             {
-                oldest_sock = entry;
-            }
-            conn_count++;
-            pollfds = realloc(pollfds, (2 + conn_count) * sizeof(struct pollfd));
-            pollfds[conn_count + 1].fd = client->sd;
-            pollfds[conn_count + 1].events = POLLIN | POLLHUP;
 
-            client = NULL;
-            // add client socket to dp list of sockets
+                // log failed to create socket
+
+                // successfully created new socket;
+                pollfds[0].revents = 0;
+
+                tcp_element *entry = malloc(sizeof(tcp_element));
+                if (!client)
+                {
+                    printf("errro with client\n");
+                }
+                entry->socket = client;
+                entry->sensor_id = 0;
+                entry->last_timestamp = time(0);
+                dpl_insert_at_index(socket_list, entry, 0, 0);
+                if (!oldest_sock)
+                {
+                    oldest_sock = entry;
+                }
+                printf("Size of list %d\n", dpl_size(socket_list));
+                pollfds = realloc(pollfds, (2 + conn_count) * sizeof(struct pollfd));
+                if (tcp_get_sd(client, &(pollfds[conn_count + 2].fd)) != TCP_NO_ERROR)
+                {
+                    printf("Error while getting sock descriptor'n");
+                }
+                pollfds[conn_count + 2].events = POLLHUP | POLLIN;
+                conn_count++;
+#ifdef DEBUG
+                printf("Successfully created socket with sd: %d \n", pollfds[conn_count + 1].fd);
+#endif
+                client = NULL;
+                // add client socket to dp list of sockets
+            }
+            else
+            {
+#ifdef DEBUG
+                printf("Failed to create socket\n");
+#endif
+            }
         }
 
-        if (pollfds[1].revents == POLLIN)
+        if (pollfds[1].revents & POLLIN)
         { // handle input from datamgr;
+
             while (read(data_conn_pipefds[0], &id_to_be_dropped, sizeof(sensor_id_t) > 0))
             {
                 // drop sensors from here
@@ -140,58 +157,65 @@ void connmgr_listen_to_port(int port_number, sbuffer_t **buffer)
                         for (int j = i; j < conn_count + 1; j++)
                         {
                             pollfds[i] = pollfds[i + 1];
-                            conn_count--;
-                            pollfds = realloc(pollfds, sizeof(struct pollfd) * (2 + conn_count));
                         }
+                        conn_count--;
+                        pollfds = realloc(pollfds, sizeof(struct pollfd) * (2 + conn_count));
+
                         break;
                     }
                 }
             }
         }
-
+        /*if (oldest_sock!=NULL && (time(0)-oldest_sock->last_timestamp) > TIMEOUT)
+        {
+            dplist_node_t *node = dpl_get_reference_of_element(socket_list, oldest_sock);
+            // remove from pollfd
+            int i;
+            for (i = 2; i < conn_count + 2; i++)
+            {
+                if (pollfds[i].fd = oldest_sock->socket->sd)
+                {
+                    break;
+                }
+            }
+            for (int j = i; j < conn_count + 1; j++)
+            {
+                pollfds[j] = pollfds[j + 1];
+            }
+            conn_count--;
+            pollfds = realloc(pollfds, sizeof(struct pollfd) * (2 + conn_count));
+            dpl_remove_at_reference(socket_list, node, 1);
+            dplist_node_t* lnode =dpl_get_last_reference(socket_list); 
+            if(lnode){
+            oldest_sock = (tcp_element *)(lnode->element);
+            }
+            else{
+                oldest_sock = NULL; 
+            }
+            printf("removed oldest socket\n"); 
+          
+        }*/
+        
         for (int i = 2; i < conn_count + 2; i++)
         {
-            if (pollfds[i].revents & POLLIN)
-            {
-
-                // new data
-                // receive id, value , ts
-                temp->socket->sd = pollfds[i].fd;
-                tcp_element *ptr = ((tcp_element *)dpl_get_reference_of_element(socket_list, temp));
-                sensor_data_t *data = malloc(sizeof(sensor_data_t));
-                int result, bytes;
-                bytes = sizeof(data->id);
-                result = tcp_receive(client, (void *)&data->id, &bytes);
-                if (ptr->sensor_id == 0)
-                {
-                    ptr->sensor_id = data->id;
-                }
-                bytes = sizeof(data->value);
-                result = tcp_receive(client, (void *)&data->value, &bytes);
-                bytes = sizeof(data->ts);
-                result = tcp_receive(client, (void *)&data->ts, &bytes);
-                ptr->last_timestamp = data->ts;
-                if ((result == TCP_NO_ERROR) && bytes) {
-                #ifdef DEBUG
-                printf("sensor id = %hu - temperature = %g - timestamp = %ld\n", data->id, data->value,(long int) data->ts);
-                #endif
-                CONN_LOG_MSG->timestamp = time(0); 
-                        asprintf(&CONN_LOG_MSG->message, "sensor id = %hu - temperature = %g - timestamp = %ld\n", data->id, data->value,(long int) data->ts); 
-                         log_event(CONN_GATEWAY_FD,CONN_LOG_MSG); 
-                         free(CONN_LOG_MSG->message);
-                        //sbuffer_insert(*buffer, data); // don't free data
-            }
-                // write data to sbuffer
-               
-            }
+printf("inside loop\n"); 
             if (pollfds[i].revents & POLLHUP)
             {
+#ifdef DEBUG
+                printf("Client Closed Connection  \n");
+#endif
                 temp->socket->sd = pollfds[i].fd;
                 dplist_node_t *node = dpl_get_reference_of_element(socket_list, temp);
                 if (node == dpl_get_reference_of_element(socket_list, oldest_sock))
                 {
                     dpl_remove_at_reference(socket_list, node, 1);
-                    oldest_sock = (tcp_element *)(dpl_get_last_reference(socket_list)->element);
+                    dplist_node_t* lnode = dpl_get_last_reference(socket_list); 
+                    if(lnode){
+                    oldest_sock = (tcp_element *)(lnode->element);
+                    }
+                    else {
+                        oldest_sock = NULL; 
+                    }
                 }
                 else
                 {
@@ -199,28 +223,92 @@ void connmgr_listen_to_port(int port_number, sbuffer_t **buffer)
                 }
                 for (int j = i; j < conn_count + 1; j++)
                 {
-                    pollfds[i] = pollfds[i + 1];
+                    pollfds[j] = pollfds[j + 1];
+                }
+                conn_count--;
+                pollfds = realloc(pollfds, sizeof(struct pollfd) * (2 + conn_count));
+            }
+            if (pollfds[i].revents & POLLIN)
+            {
+
+                // new data
+                // receive id, value , ts
+
+                temp->socket->sd = pollfds[i].fd;
+                dplist_node_t *node = dpl_get_reference_of_element(socket_list, temp);
+                tcp_element *ptr = (tcp_element *)(node->element);
+
+                sensor_data_t *data = malloc(sizeof(sensor_data_t));
+                int result, bytes;
+                bytes = sizeof(data->id);
+                result = tcp_receive(ptr->socket, (void *)&data->id, &bytes);
+                if (bytes == 0)
+                {
+                    // client close connection frmo their side
+#ifdef DEBUG
+                    printf("Client Closing Connection ...  \n");
+#endif
+
+                    if (ptr == (tcp_element *)(dpl_get_reference_of_element(socket_list, oldest_sock)->element))
+                    {
+
+                        dpl_remove_at_reference(socket_list, node, 1);
+
+                        dplist_node_t *lnode = dpl_get_last_reference(socket_list);
+                        if (lnode)
+                        {
+                            oldest_sock = (tcp_element *)((dpl_get_last_reference(socket_list))->element);
+                        }
+                        else
+                        {
+                            oldest_sock = NULL;
+                        }
+                    }
+                    else
+                    {
+
+                        dpl_remove_at_reference(socket_list, node, 1);
+                    }
+
+                    for (int j = i; j < conn_count + 1; j++)
+                    {
+
+                        pollfds[j] = pollfds[j + 1];
+                    }
                     conn_count--;
                     pollfds = realloc(pollfds, sizeof(struct pollfd) * (2 + conn_count));
+#ifdef DEBUG
+                    printf("inside  loop  \n");
+#endif
+
+                    continue;
                 }
+                if (ptr->sensor_id == 0)
+                {
+                    ptr->sensor_id = data->id;
+                }
+                bytes = sizeof(data->value);
+                result = tcp_receive(ptr->socket, (void *)&data->value, &bytes);
+                bytes = sizeof(data->ts);
+                result = tcp_receive(ptr->socket, (void *)&data->ts, &bytes);
+                ptr->last_timestamp = data->ts;
+                if ((result == TCP_NO_ERROR) && bytes)
+                {
+#ifdef DEBUG
+                    printf("sensor id = %hu - temperature = %g - timestamp = %ld\n", data->id, data->value, (long int)data->ts);
+#endif
+
+                    //sbuffer_insert(*buffer, data); // don't free data
+                }
+                // write data to sbuffer
             }
         }
 
         // check last timesamp
-        if (time(0) - oldest_sock->last_timestamp > TIMEOUT)
-        {
-            dplist_node_t *node = dpl_get_reference_of_element(socket_list, oldest_sock);
-            // remove from pollfd
-            int i;
-            for (int j = i; j < conn_count + 1; j++)
-            {
-                pollfds[i] = pollfds[i + 1];
-                conn_count--;
-                pollfds = realloc(pollfds, sizeof(struct pollfd) * (2 + conn_count));
-            }
-            dpl_remove_at_reference(socket_list, node, 1);
-            oldest_sock = (tcp_element *)(dpl_get_last_reference(socket_list)->element);
-        }
+          #ifdef DEBUG
+            printf("Difference in time %ld %ld \n", time(0), oldest_sock->last_timestamp);
+        #endif 
+        
     }
     free(temp->socket);
     free(temp);
@@ -229,16 +317,21 @@ void connmgr_listen_to_port(int port_number, sbuffer_t **buffer)
 
 void connmgr_destroy()
 {
-    
+
     // close only read end of pipe but will close both for testing purposes
-    close(data_conn_pipefds[0]); 
-    close(data_conn_pipefds[1]); 
+    close(data_conn_pipefds[0]);
+    close(data_conn_pipefds[1]);
     if (tcp_close(&server) != TCP_NO_ERROR)
     {
         // log failed to close server ;
     }
     free(pollfds);
-    free(CONN_LOG_MSG); 
     dpl_free(&socket_list, 1);
+    CONN_LOG_MSG->timestamp = time(0);
+    asprintf(&CONN_LOG_MSG->message, "Connmgr Destroyed Successfully");
+    log_event(CONN_GATEWAY_FD, CONN_LOG_MSG);
+    free(CONN_LOG_MSG->message);
+    free(CONN_LOG_MSG);
+
     // else log successfully destroyed connmgr
 }
