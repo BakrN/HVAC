@@ -413,25 +413,15 @@ dplist_t *dpl_insert_at_reference(dplist_t *list, void *element, dplist_node_t *
         if(list == NULL || list->head == NULL || reference == NULL){
             return NULL; }
         dplist_node_t* current = list->head;
+		int index = 0; 
         while(current != NULL){
             if(current == reference) {
-				if(current->prev == NULL){
-					return dpl_remove_at_index(list,0,free_element); 
-				}
-				 else if(current->prev!=NULL){current->prev->next = current->next;
-					
-				 }
-				if(current->next == NULL){
-					return dpl_remove_at_index(list,dpl_size(list)+1,free_element); 
-				}
-               
-                else if(current->next!=NULL){current->next->prev = current->prev;} 
-                if(free_element){
-                    list->element_free(&current->element); }
-                free(current); 
-                break; 
+				return dpl_remove_at_index(list, index, free_element); 
             }
+			current = current->next; 
+			index ++; 
         }
+		
         return list;
     }
 

@@ -65,7 +65,7 @@ void connmgr_listen_to_port(int port_number, sbuffer_t **buffer)
         return;
     }
     tcpsock_t *client;
-    tcp_element *oldest_sock = NULL;
+ 
 
     pollfds = malloc(2 * sizeof(struct pollfd));
     if (tcp_passive_open(&server, PORT) != TCP_NO_ERROR)
@@ -95,8 +95,7 @@ void connmgr_listen_to_port(int port_number, sbuffer_t **buffer)
                 // log failed to create socket
 
                 // successfully created new socket;
-                pollfds[0].revents = 0;
-
+                conn_count++; 
                 tcp_element *entry = malloc(sizeof(tcp_element));
                 if (!client)
                 {
@@ -106,18 +105,15 @@ void connmgr_listen_to_port(int port_number, sbuffer_t **buffer)
                 entry->sensor_id = 0;
                 entry->last_timestamp = time(0);
                 dpl_insert_at_index(socket_list, entry, 0, 0);
-                if (!oldest_sock)
-                {
-                    oldest_sock = entry;
-                }
-                printf("Size of list %d\n", dpl_size(socket_list));
-                pollfds = realloc(pollfds, (2 + conn_count) * sizeof(struct pollfd));
-                if (tcp_get_sd(client, &(pollfds[conn_count + 2].fd)) != TCP_NO_ERROR)
+              pollfds = realloc(pollfds, (2 + conn_count) * sizeof(struct pollfd));
+
+                printf("List size : %d, Reallocating size: %d, count of data in poll\n", dpl_size(socket_list), (2+conn_count), sizeof(pollfds)/sizeof(struct pollfd));
+                if (tcp_get_sd(client, &(pollfds[conn_count + 1].fd)) != TCP_NO_ERROR)
                 {
                     printf("Error while getting sock descriptor'n");
                 }
-                pollfds[conn_count + 2].events = POLLHUP | POLLIN;
-                conn_count++;
+                pollfds[conn_count + 1].events = POLLHUP | POLLIN;
+              
 #ifdef DEBUG
                 printf("Successfully created socket with sd: %d \n", pollfds[conn_count + 1].fd);
 #endif
@@ -145,20 +141,15 @@ void connmgr_listen_to_port(int port_number, sbuffer_t **buffer)
                     if (pollfds[i].fd == ((tcp_element *)(node->element))->socket->sd)
                     {
 
-                        if (node == dpl_get_reference_of_element(socket_list, oldest_sock))
-                        {
-                            dpl_remove_at_reference(socket_list, node, 1);
-                            oldest_sock = (tcp_element *)(dpl_get_last_reference(socket_list)->element);
-                        }
-                        else
-                        {
-                            dpl_remove_at_reference(socket_list, node, 1);
-                        }
+                      
+                        dpl_remove_at_reference(socket_list, node, 1);
+                      
                         for (int j = i; j < conn_count + 1; j++)
                         {
                             pollfds[i] = pollfds[i + 1];
                         }
                         conn_count--;
+                       
                         pollfds = realloc(pollfds, sizeof(struct pollfd) * (2 + conn_count));
 
                         break;
@@ -166,120 +157,76 @@ void connmgr_listen_to_port(int port_number, sbuffer_t **buffer)
                 }
             }
         }
-        /*if (oldest_sock!=NULL && (time(0)-oldest_sock->last_timestamp) > TIMEOUT)
-        {
-            dplist_node_t *node = dpl_get_reference_of_element(socket_list, oldest_sock);
-            // remove from pollfd
-            int i;
-            for (i = 2; i < conn_count + 2; i++)
-            {
-                if (pollfds[i].fd = oldest_sock->socket->sd)
-                {
-                    break;
-                }
-            }
-            for (int j = i; j < conn_count + 1; j++)
-            {
-                pollfds[j] = pollfds[j + 1];
-            }
-            conn_count--;
-            pollfds = realloc(pollfds, sizeof(struct pollfd) * (2 + conn_count));
-            dpl_remove_at_reference(socket_list, node, 1);
-            dplist_node_t* lnode =dpl_get_last_reference(socket_list); 
-            if(lnode){
-            oldest_sock = (tcp_element *)(lnode->element);
-            }
-            else{
-                oldest_sock = NULL; 
-            }
-            printf("removed oldest socket\n"); 
-          
-        }*/
-        
+              
         for (int i = 2; i < conn_count + 2; i++)
         {
-printf("inside loop\n"); 
-            if (pollfds[i].revents & POLLHUP)
-            {
-#ifdef DEBUG
-                printf("Client Closed Connection  \n");
-#endif
-                temp->socket->sd = pollfds[i].fd;
-                dplist_node_t *node = dpl_get_reference_of_element(socket_list, temp);
-                if (node == dpl_get_reference_of_element(socket_list, oldest_sock))
-                {
-                    dpl_remove_at_reference(socket_list, node, 1);
-                    dplist_node_t* lnode = dpl_get_last_reference(socket_list); 
-                    if(lnode){
-                    oldest_sock = (tcp_element *)(lnode->element);
-                    }
-                    else {
-                        oldest_sock = NULL; 
-                    }
-                }
-                else
-                {
-                    dpl_remove_at_reference(socket_list, node, 1);
-                }
-                for (int j = i; j < conn_count + 1; j++)
-                {
-                    pollfds[j] = pollfds[j + 1];
-                }
-                conn_count--;
-                pollfds = realloc(pollfds, sizeof(struct pollfd) * (2 + conn_count));
+       
+            if (pollfds[i].revents & POLLHUP){
+                #ifdef DEBUG
+                    printf("POLLHUP DETECTED\n"); 
+                #endif
             }
+            temp->socket->sd = pollfds[i].fd;
+      
+            dplist_node_t *node = dpl_get_reference_of_element(socket_list, temp);
+            
+            if((time(0) - ((tcp_element*)(node->element))->last_timestamp) >= TIMEOUT){
+                
+                //remove node ; 
+                #ifdef DEBUG
+                printf("Client Node with id: %hu timed out\n", ((tcp_element*)(node->element))->sensor_id); 
+                #endif
+               
+                    dpl_remove_at_reference(socket_list, node, 1);
+                    
+                    for (int j = i; j < conn_count+1; j++)
+                    {
+
+                        pollfds[j] = pollfds[j + 1];
+                    }
+                    conn_count--;
+                    i--;
+                    pollfds = realloc(pollfds, sizeof(struct pollfd) * (2 + conn_count));
+                  
+
+                    continue;
+            }
+
             if (pollfds[i].revents & POLLIN)
             {
 
                 // new data
                 // receive id, value , ts
-
-                temp->socket->sd = pollfds[i].fd;
-                dplist_node_t *node = dpl_get_reference_of_element(socket_list, temp);
+                
+           
+               
                 tcp_element *ptr = (tcp_element *)(node->element);
 
                 sensor_data_t *data = malloc(sizeof(sensor_data_t));
                 int result, bytes;
                 bytes = sizeof(data->id);
                 result = tcp_receive(ptr->socket, (void *)&data->id, &bytes);
-                if (bytes == 0)
+                if (bytes == 0) // closed connection
                 {
                     // client close connection frmo their side
-#ifdef DEBUG
+                    #ifdef DEBUG
                     printf("Client Closing Connection ...  \n");
-#endif
+                    #endif
 
-                    if (ptr == (tcp_element *)(dpl_get_reference_of_element(socket_list, oldest_sock)->element))
-                    {
+                 
+                    
 
-                        dpl_remove_at_reference(socket_list, node, 1);
-
-                        dplist_node_t *lnode = dpl_get_last_reference(socket_list);
-                        if (lnode)
-                        {
-                            oldest_sock = (tcp_element *)((dpl_get_last_reference(socket_list))->element);
-                        }
-                        else
-                        {
-                            oldest_sock = NULL;
-                        }
-                    }
-                    else
-                    {
-
-                        dpl_remove_at_reference(socket_list, node, 1);
-                    }
-
-                    for (int j = i; j < conn_count + 1; j++)
+                    dpl_remove_at_reference(socket_list, node, 1);
+                  
+                    for (int j = i; j < conn_count+1; j++)
                     {
 
                         pollfds[j] = pollfds[j + 1];
                     }
                     conn_count--;
+                    i--;
                     pollfds = realloc(pollfds, sizeof(struct pollfd) * (2 + conn_count));
-#ifdef DEBUG
-                    printf("inside  loop  \n");
-#endif
+
 
                     continue;
                 }
@@ -302,12 +249,11 @@ printf("inside loop\n");
                 }
                 // write data to sbuffer
             }
+       
         }
 
         // check last timesamp
-          #ifdef DEBUG
-            printf("Difference in time %ld %ld \n", time(0), oldest_sock->last_timestamp);
-        #endif 
+        
         
     }
     free(temp->socket);
