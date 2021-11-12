@@ -92,7 +92,7 @@ void* datamgr_element_copy(void * element);
 int datamgr_element_compare(void * x, void* y); 
 
 void datamgr_initialize_table(void* map, void* file); 
-int datamgr_add_table_entry(void* map, sensor_data_t* data); 
+int datamgr_add_table_entry(void* map, void* args); 
 void datamgr_free_entry(void*entry); 
 
 

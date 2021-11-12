@@ -48,7 +48,7 @@ typedef struct {
 } sbuffer_table_entry; 
 typedef struct {
     uint32_t sequence_number; 
-    time_t* timestamp; 
+    time_t timestamp; 
     char* message; 
 } log_msg; 
 

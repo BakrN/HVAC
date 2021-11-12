@@ -4,10 +4,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "sbuffer.h"
-pthread_rwlock_t sbuffer_edit_mutex; 
-pthread_cond_t sbuffer_element_added; 
-sbuffer_table_entry* strmgr_iterator; // used to get next packet; points to entry of sbuffer
-sbuffer_table_entry* datamgr_iterator; // used to get next packet; points to entry of sbuffer
+#include <memory.h>
+
 /**
  * basic node for the buffer, these nodes are linked together to create the buffer
  */
@@ -19,9 +17,11 @@ sbuffer_table_entry* datamgr_iterator; // used to get next packet; points to ent
 
 
 int sbuffer_init(sbuffer_t **buffer) {
-    pthread_rwlock_init(&sbuffer_edit_mutex,NULL); 
-    pthread_cond_init(&sbuffer_element_added, NULL); 
-    *buffer = create_table(sbuffer_free_entry, sbuffer_add_table_entry, NULL, NULL); 
+    sbuffer_t* ptr = malloc(sizeof(sbuffer_t)); 
+    ptr->map = create_table(sbuffer_free_entry, sbuffer_add_table_entry, NULL, NULL); 
+    pthread_rwlock_init(&ptr->sbuffer_edit_mutex,NULL); 
+    pthread_cond_init(&ptr->sbuffer_element_added, NULL); 
+    *buffer = ptr; 
     if (*buffer == NULL){return SBUFFER_FAILURE; } 
     return SBUFFER_SUCCESS;
 }
@@ -30,26 +30,34 @@ int sbuffer_free(sbuffer_t **buffer) {
     if(buffer == NULL || *buffer == NULL){
         return SBUFFER_FAILURE; 
     }
-    pthread_rwlock_wrlock(&sbuffer_edit_mutex); 
-    destroy_table(*buffer); 
-    pthread_rwlock_unlock(&sbuffer_edit_mutex); 
+
+    pthread_rwlock_wrlock(&((*buffer)->sbuffer_edit_mutex)); 
+    destroy_table((*buffer)->map); 
+    pthread_rwlock_unlock(&((*buffer)->sbuffer_edit_mutex)); 
+    free(*buffer); 
+    *buffer = NULL; 
     return SBUFFER_SUCCESS; 
 }
 
 int sbuffer_remove(sbuffer_t *buffer, sensor_data_t *data) {
-    // NOT NEEDED SINCE BUFFER IT AUTOMATICALLY cleaned up 
+    // NOT NEEDED SINCE BUFFER IT IS AUTOMATICALLY cleaned up 
 }
 
 int sbuffer_insert(sbuffer_t *buffer, sensor_data_t *data) {
-    pthread_rwlock_wrlock(&sbuffer_edit_mutex); 
-    add_entry(buffer,data); 
-    pthread_rwlock_unlock(&sbuffer_edit_mutex); 
-    pthread_cond_broadcast(&sbuffer_element_added); 
+    // Packaging data addresses
+    
+    //end
+    pthread_rwlock_wrlock(&(buffer->sbuffer_edit_mutex)); 
+    add_entry(buffer->map,(void*)data); 
+    pthread_rwlock_unlock(&(buffer->sbuffer_edit_mutex)); 
+    pthread_cond_broadcast(&(buffer->sbuffer_element_added)); 
+    
 }
 
 
-int sbuffer_add_table_entry(void* map, sensor_data_t* data){
+int sbuffer_add_table_entry(void* map, void* arg){
     
+    sensor_data_t* data = (sensor_data_t*)arg; 
     // steps: check if key exists if not create it /*
     uint32_t index = hash_key(data->id) ; 
     // searching if entry already exists (method of adding an entry is linear)
@@ -151,36 +159,37 @@ void sbuffer_free_entry(void*entry){
     free(ptr); 
     ptr = NULL; 
 }
+
 void sbuffer_element_free(void ** element){
     free(*element); // frees sensor_data_id pointer; 
     *element=  NULL; 
 }
 
-sbuffer_table_entry* get_next(hash_table* map, ENTRY_TYPE type){
-    pthread_rwlock_rdlock(&sbuffer_edit_mutex); 
-   
+sbuffer_table_entry* get_next(sbuffer_t* buffer, ENTRY_TYPE type){
+    pthread_rwlock_rdlock(&(buffer->sbuffer_edit_mutex)); 
+    hash_table* map = buffer->map; 
     long* entries =  map->entries;  
     sbuffer_table_entry* entry; 
     for(int i =0; i < HASH_TABLE_SIZE; i++){
         entry = (sbuffer_table_entry*) entries[i];      
         if(type == DATA_ENTRY){
-            if(entry != NULL && datamgr_iterator != entry && entry->tbr_datamgr> 0){
+            if(entry != NULL && buffer->datamgr_iterator != entry && entry->tbr_datamgr> 0){
                 
-                datamgr_iterator= entry; 
-              pthread_rwlock_unlock(&sbuffer_edit_mutex); 
+                buffer->datamgr_iterator= entry; 
+              pthread_rwlock_unlock(&(buffer->sbuffer_edit_mutex)); 
                 return entry;
             }
-            datamgr_iterator = NULL; 
+            buffer->datamgr_iterator = NULL; 
             return NULL; 
         }
         else{
-            if(entry != NULL && strmgr_iterator != entry && entry->tbr_strmgr> 0){
+            if(entry != NULL && buffer->strmgr_iterator != entry && entry->tbr_strmgr> 0){
               
-                strmgr_iterator = entry; 
-                pthread_rwlock_unlock(&sbuffer_edit_mutex); 
+                buffer->strmgr_iterator = entry; 
+                pthread_rwlock_unlock(&(buffer->sbuffer_edit_mutex)); 
                 return entry;
             }
-            strmgr_iterator = NULL; 
+            buffer->strmgr_iterator = NULL; 
             return NULL; 
         }
     }

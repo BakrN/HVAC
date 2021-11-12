@@ -3,7 +3,7 @@
 
 
 hash_table* create_table(void (*free_entry)(void* entry),
-    int (*add_table_entry)(void* map, sensor_data_t* data), // 0 for success , -1 otherwise 
+    int (*add_table_entry)(void* map, void* data), // 0 for success , -1 otherwise 
     void (*initialize_table)(void* map, void*arg), void* arg){
 
     hash_table* mp = malloc(sizeof(hash_table));
@@ -54,7 +54,7 @@ void destroy_table(hash_table* map){
            #ifdef DEBUG
             printf("Entry at index: %d , freed with address: %ld\n", i, entries[i]);
             #endif 
-           (*map->free_entry)((void*)entries[i]);
+           map->free_entry((void*)entries[i]);
             entries[i] = (long)NULL; 
         } 
    }
@@ -67,9 +67,9 @@ void* get_entry_by_key(hash_table* map, uint32_t key){
     long* ptr = (long*) map->entries; 
     return (void*)ptr[hash_key(key)] ; 
 }
-int add_entry(hash_table*map, sensor_data_t* data){
+int add_entry(hash_table*map, void* data){
 
-    return (*map->add_table_entry)((void*)map, data) ; 
+    return map->add_table_entry((void*)map, data) ; 
 }
 uint32_t hash_key(uint32_t id){
     uint32_t hash = 2166136261; //32 bit offset

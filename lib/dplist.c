@@ -64,11 +64,11 @@ struct dplist {
 		list->element_copy = element_copy;
 		list->element_free = element_free;
 		list->element_compare = element_compare;
+		
 		return list;
 	}
 
 void dpl_free(dplist_t **list, bool free_element) {
-	 
 	if(*list != NULL){
 		dplist_node_t* current = (*list)->head; 
 		if(current != NULL){
@@ -77,9 +77,9 @@ void dpl_free(dplist_t **list, bool free_element) {
 				current = current->next ; 
 
 				if(free_element && (*list)->element_free != NULL){
-					(*(*list)->element_free)(&tmp->element); 
+					(*list)->element_free(&tmp->element); 
+					
 				}	
-
 				free(tmp); 
 			}
 
@@ -175,6 +175,10 @@ dplist_t *dpl_remove_at_index(dplist_t *list, int index, bool free_element) {
 	
 	if(list->head->next == NULL && list->head->prev == NULL){
 		// 1 element list; 
+		if(free_element){
+		list->element_free(&list->head->element); 
+	}
+	
 		free(list->head); 
 		list->head = NULL;
 		 
@@ -187,6 +191,10 @@ dplist_t *dpl_remove_at_index(dplist_t *list, int index, bool free_element) {
 
 		if(current->next != NULL){current->next->prev = NULL;}
 		list->head = current->next; 
+		if(free_element){
+		list->element_free(&current->element); 
+	}
+	
 		free(current);
 		return list; 
 	}
@@ -207,7 +215,7 @@ dplist_t *dpl_remove_at_index(dplist_t *list, int index, bool free_element) {
 			current->prev->next = current->next;
 	}
 	if(free_element){
-		(*list->element_free)(&current->element); 
+		list->element_free(&current->element); 
 	}
 	
 	free(current); 
@@ -413,10 +421,26 @@ dplist_t *dpl_insert_at_reference(dplist_t *list, void *element, dplist_node_t *
         if(list == NULL || list->head == NULL || reference == NULL){
             return NULL; }
         dplist_node_t* current = list->head;
+		
 		int index = 0; 
         while(current != NULL){
             if(current == reference) {
 				return dpl_remove_at_index(list, index, free_element); 
+				/*if(free_element){
+					list->element_free(&current->element); 
+				}
+				
+				if(current->prev){
+					current->prev->next = current->next;
+				}
+				if(current->next){
+					current->next->prev = current->prev; 
+				}
+				
+				free(current); 
+				current = NULL; 
+				
+				return list ;*/ 
             }
 			current = current->next; 
 			index ++; 

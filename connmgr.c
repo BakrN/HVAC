@@ -2,20 +2,8 @@
 
 //
 
-pthread_rwlock_t connmgr_drop_sensor; // needs to be shared with data mgr
-tcpsock_t *server;
-dplist_t *socket_list;
-struct pollfd *pollfds;
-sbuffer_t *test;
-log_msg *CONN_LOG_MSG;
-int data_conn_pipefds[2];
-int CONN_GATEWAY_FD;
-typedef struct
-{
-    tcpsock_t *socket;
-    uint16_t sensor_id;
-    time_t last_timestamp;
-} tcp_element;
+// NOTE SHOULD PROBABLY KEEP TRACK OF SENSOR IDS SO THAT IF THEY TRY TO CONNECT AGAIN I REFUSE THEM 
+
 
 int tcp_element_compare(void *x, void *y)
 {
@@ -34,90 +22,110 @@ int tcp_element_compare(void *x, void *y)
 void tcp_element_free(void **element)
 {
 
-    tcp_close(&(((tcp_element *)*element)->socket));
-    free(*element);
-}
+    if(tcp_close(&(((tcp_element *)*element)->socket))!= TCP_NO_ERROR){
+       // error closing socket; 
+    }
 
-void connmgr_init(void *port_number)
+    free(*element);
+    *element = NULL; 
+}
+void* tcp_element_copy(void *src )
 {
-    CONN_LOG_MSG = malloc(sizeof(log_msg));
-    CONN_LOG_MSG->sequence_number = 1;
-    CONN_GATEWAY_FD = open("gateway.log", O_WRONLY);
-    socket_list = dpl_create(NULL, tcp_element_free, &tcp_element_compare);
-    pthread_rwlock_init(&connmgr_drop_sensor, NULL);
-    if (!pipe2(data_conn_pipefds, O_NONBLOCK))
+    
+    tcp_element* ptr  = malloc(sizeof(tcp_element)); 
+    ptr->socket = ((tcp_element*)src)->socket; 
+    ptr->last_timestamp =  ((tcp_element*)src)->last_timestamp; 
+    ptr->sensor_id = ((tcp_element*)src)->sensor_id; 
+    return ptr; 
+}
+void connmgr_init(void *args)
+{   
+    int port_number = *(int *)args; 
+    
+    CONNMGR_DATA* connmgr_data = malloc(sizeof(CONNMGR_DATA)); 
+    connmgr_data->CONN_LOG_MSG = malloc(sizeof(log_msg));
+    connmgr_data->CONN_LOG_MSG->sequence_number = 1;
+    connmgr_data->CONN_GATEWAY_FD = open("gateway.log", O_WRONLY);
+    connmgr_data->socket_list = dpl_create(&tcp_element_copy, &tcp_element_free, &tcp_element_compare);
+    sbuffer_t** ptr = (sbuffer_t**)(((char*)args) + sizeof(int)); 
+    connmgr_data->buffer = *ptr; // long is same size as sbuffer_t*
+    if (!pipe2(connmgr_data->data_conn_pipefds, O_NONBLOCK))
     {
-        CONN_LOG_MSG->timestamp = time(0);
-        asprintf(&CONN_LOG_MSG->message, "Datamgr Connmgr Pipe was opened successfully\n");
-        log_event(CONN_GATEWAY_FD, CONN_LOG_MSG);
-        free(CONN_LOG_MSG->message);
+        connmgr_data->CONN_LOG_MSG->timestamp = time(0);
+        asprintf(&connmgr_data->CONN_LOG_MSG->message, "Datamgr Connmgr Pipe was opened successfully\n");
+        log_event(connmgr_data->CONN_GATEWAY_FD, connmgr_data->CONN_LOG_MSG);
+        free(connmgr_data->CONN_LOG_MSG->message);
     }
     
     //./sensor_test 101 15 127.0.0.1 1234
-    connmgr_listen_to_port(*(int *)port_number, &test);
+    
+    connmgr_listen_to_port(port_number, connmgr_data);
     // open pipe to datagmr
 }
-void connmgr_listen_to_port(int port_number, sbuffer_t **buffer)
+void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
 {
     if (port_number < MIN_PORT || port_number > MAX_PORT)
     {
         // log invalid port
         return;
     }
-    tcpsock_t *client;
+
  
 
-    pollfds = malloc(2 * sizeof(struct pollfd));
-    if (tcp_passive_open(&server, PORT) != TCP_NO_ERROR)
+    connmgr_data->pollfds = malloc(2 * sizeof(struct pollfd));
+    if (tcp_passive_open(&connmgr_data->server, PORT) != TCP_NO_ERROR)
     {
-        // log failed to setup server
+        // log failed to setup connmgr_data->server
     }
     int conn_count = 0;
-    tcp_get_sd(server, &(pollfds[0].fd));
-    pollfds[0].events = POLLHUP | POLLIN;
+    tcp_get_sd(connmgr_data->server, &(connmgr_data->pollfds[0].fd));
+   connmgr_data->pollfds[0].events = POLLHUP | POLLIN;
     // add read pipe to poll
-    pollfds[1].fd = data_conn_pipefds[0];
-    pollfds[1].events = POLLIN;
+    connmgr_data->pollfds[1].fd = connmgr_data->data_conn_pipefds[0];
+    connmgr_data->pollfds[1].events = POLLIN;
     sensor_id_t id_to_be_dropped;
     tcp_element *temp = malloc(sizeof(tcp_element));
     temp->socket = malloc(sizeof(tcpsock_t));
 
-    while (poll(pollfds, conn_count + 2, 20000) > 0 || conn_count)
+    while (poll(connmgr_data->pollfds, conn_count + 2, 10000) > 0 || conn_count)
     { // revents are cleared by poll function
 #ifdef DEBUG
         printf("Current clients count: %d \n", conn_count);
 #endif
-        if (pollfds[0].revents & POLLIN)
+        if (connmgr_data->pollfds[0].revents & POLLIN)
         {
-            if (tcp_wait_for_connection(server, &client) == TCP_NO_ERROR)
+            tcp_element *entry = malloc(sizeof(tcp_element));// leak somehow
+            entry->socket = NULL; 
+            if (tcp_wait_for_connection(connmgr_data->server, &entry->socket) == TCP_NO_ERROR)
             {
 
                 // log failed to create socket
 
                 // successfully created new socket;
                 conn_count++; 
-                tcp_element *entry = malloc(sizeof(tcp_element));
-                if (!client)
+                
+                if (!entry->socket)
                 {
                     printf("errro with client\n");
                 }
-                entry->socket = client;
+              
                 entry->sensor_id = 0;
                 entry->last_timestamp = time(0);
-                dpl_insert_at_index(socket_list, entry, 0, 0);
-              pollfds = realloc(pollfds, (2 + conn_count) * sizeof(struct pollfd));
+                dpl_insert_at_index(connmgr_data->socket_list, entry, 0, 0);
+            
+                connmgr_data->pollfds = realloc(connmgr_data->pollfds, (2 + conn_count) * sizeof(struct pollfd));
 
-                printf("List size : %d, Reallocating size: %d, count of data in poll\n", dpl_size(socket_list), (2+conn_count), sizeof(pollfds)/sizeof(struct pollfd));
-                if (tcp_get_sd(client, &(pollfds[conn_count + 1].fd)) != TCP_NO_ERROR)
+                printf("List size : %d, Reallocating size: %d\n", dpl_size(connmgr_data->socket_list), (2+conn_count));
+                if (tcp_get_sd(entry->socket, &(connmgr_data->pollfds[conn_count + 1].fd)) != TCP_NO_ERROR)
                 {
                     printf("Error while getting sock descriptor'n");
                 }
-                pollfds[conn_count + 1].events = POLLHUP | POLLIN;
+                connmgr_data->pollfds[conn_count + 1].events = POLLHUP | POLLIN;
               
 #ifdef DEBUG
-                printf("Successfully created socket with sd: %d \n", pollfds[conn_count + 1].fd);
+                printf("Successfully created socket with sd: %d \n", connmgr_data->pollfds[conn_count + 1].fd);
 #endif
-                client = NULL;
+             
                 // add client socket to dp list of sockets
             }
             else
@@ -125,32 +133,33 @@ void connmgr_listen_to_port(int port_number, sbuffer_t **buffer)
 #ifdef DEBUG
                 printf("Failed to create socket\n");
 #endif
+                    free(entry); 
             }
         }
 
-        if (pollfds[1].revents & POLLIN)
+        if (connmgr_data->pollfds[1].revents & POLLIN)
         { // handle input from datamgr;
 
-            while (read(data_conn_pipefds[0], &id_to_be_dropped, sizeof(sensor_id_t) > 0))
+            while (read(connmgr_data->data_conn_pipefds[0], &id_to_be_dropped, sizeof(sensor_id_t) > 0))
             {
                 // drop sensors from here
                 temp->sensor_id = id_to_be_dropped;
-                dplist_node_t *node = dpl_get_reference_of_element(socket_list, temp);
+                dplist_node_t *node = dpl_get_reference_of_element(connmgr_data->socket_list, temp);
                 for (int i = 2; i < conn_count + 2; i++)
                 {
-                    if (pollfds[i].fd == ((tcp_element *)(node->element))->socket->sd)
+                    if (connmgr_data->pollfds[i].fd == ((tcp_element *)(node->element))->socket->sd)
                     {
 
                       
-                        dpl_remove_at_reference(socket_list, node, 1);
+                        dpl_remove_at_reference(connmgr_data->socket_list, node, 1);
                       
                         for (int j = i; j < conn_count + 1; j++)
                         {
-                            pollfds[i] = pollfds[i + 1];
+                            connmgr_data->pollfds[i] = connmgr_data->pollfds[i + 1];
                         }
                         conn_count--;
                        
-                        pollfds = realloc(pollfds, sizeof(struct pollfd) * (2 + conn_count));
+                        connmgr_data->pollfds = realloc(connmgr_data->pollfds, sizeof(struct pollfd) * (2 + conn_count));
 
                         break;
                     }
@@ -161,14 +170,14 @@ void connmgr_listen_to_port(int port_number, sbuffer_t **buffer)
         for (int i = 2; i < conn_count + 2; i++)
         {
        
-            if (pollfds[i].revents & POLLHUP){
+            if (connmgr_data->pollfds[i].revents & POLLHUP){
                 #ifdef DEBUG
                     printf("POLLHUP DETECTED\n"); 
                 #endif
             }
-            temp->socket->sd = pollfds[i].fd;
+            temp->socket->sd = connmgr_data->pollfds[i].fd;
       
-            dplist_node_t *node = dpl_get_reference_of_element(socket_list, temp);
+            dplist_node_t *node = dpl_get_reference_of_element(connmgr_data->socket_list, temp);
             
             if((time(0) - ((tcp_element*)(node->element))->last_timestamp) >= TIMEOUT){
                 
@@ -177,22 +186,22 @@ void connmgr_listen_to_port(int port_number, sbuffer_t **buffer)
                 printf("Client Node with id: %hu timed out\n", ((tcp_element*)(node->element))->sensor_id); 
                 #endif
                
-                    dpl_remove_at_reference(socket_list, node, 1);
+                    dpl_remove_at_reference(connmgr_data->socket_list, node, 1);
                     
                     for (int j = i; j < conn_count+1; j++)
                     {
 
-                        pollfds[j] = pollfds[j + 1];
+                        connmgr_data->pollfds[j] = connmgr_data->pollfds[j + 1];
                     }
                     conn_count--;
                     i--;
-                    pollfds = realloc(pollfds, sizeof(struct pollfd) * (2 + conn_count));
+                    connmgr_data->pollfds = realloc(connmgr_data->pollfds, sizeof(struct pollfd) * (2 + conn_count));
                   
 
                     continue;
             }
 
-            if (pollfds[i].revents & POLLIN)
+            if (connmgr_data->pollfds[i].revents & POLLIN)
             {
 
                 // new data
@@ -216,18 +225,18 @@ void connmgr_listen_to_port(int port_number, sbuffer_t **buffer)
                  
                     
 
-                    dpl_remove_at_reference(socket_list, node, 1);
+                    dpl_remove_at_reference(connmgr_data->socket_list, node, 1);
                   
                     for (int j = i; j < conn_count+1; j++)
                     {
 
-                        pollfds[j] = pollfds[j + 1];
+                        connmgr_data->pollfds[j] = connmgr_data->pollfds[j + 1];
                     }
                     conn_count--;
                     i--;
-                    pollfds = realloc(pollfds, sizeof(struct pollfd) * (2 + conn_count));
+                    connmgr_data->pollfds = realloc(connmgr_data->pollfds, sizeof(struct pollfd) * (2 + conn_count));
 
-
+                    free(data); 
                     continue;
                 }
                 if (ptr->sensor_id == 0)
@@ -245,9 +254,9 @@ void connmgr_listen_to_port(int port_number, sbuffer_t **buffer)
                     printf("sensor id = %hu - temperature = %g - timestamp = %ld\n", data->id, data->value, (long int)data->ts);
 #endif
 
-                    //sbuffer_insert(*buffer, data); // don't free data
+                    sbuffer_insert(connmgr_data->buffer, data); // don't free data
                 }
-                // write data to sbuffer
+                //free(data); //remove this if inserted into shared buffer
             }
        
         }
@@ -258,26 +267,26 @@ void connmgr_listen_to_port(int port_number, sbuffer_t **buffer)
     }
     free(temp->socket);
     free(temp);
-    connmgr_destroy();
+    connmgr_destroy(connmgr_data);
 }
 
-void connmgr_destroy()
+void connmgr_destroy(CONNMGR_DATA* connmgr_data)
 {
 
     // close only read end of pipe but will close both for testing purposes
-    close(data_conn_pipefds[0]);
-    close(data_conn_pipefds[1]);
-    if (tcp_close(&server) != TCP_NO_ERROR)
+    close(connmgr_data->data_conn_pipefds[0]);// read
+    close(connmgr_data->data_conn_pipefds[1]);//write
+    if (tcp_close(&connmgr_data->server) != TCP_NO_ERROR)
     {
-        // log failed to close server ;
+        // log failed to close connmgr_data->server ;
     }
-    free(pollfds);
-    dpl_free(&socket_list, 1);
-    CONN_LOG_MSG->timestamp = time(0);
-    asprintf(&CONN_LOG_MSG->message, "Connmgr Destroyed Successfully");
-    log_event(CONN_GATEWAY_FD, CONN_LOG_MSG);
-    free(CONN_LOG_MSG->message);
-    free(CONN_LOG_MSG);
-
+    free(connmgr_data->pollfds);
+    dpl_free(&connmgr_data->socket_list, 1); // takes care of closing sockets
+    connmgr_data->CONN_LOG_MSG->timestamp = time(0);
+    asprintf(&connmgr_data->CONN_LOG_MSG->message, "Connmgr Destroyed Successfully");
+    log_event(connmgr_data->CONN_GATEWAY_FD, connmgr_data->CONN_LOG_MSG);
+    free(connmgr_data->CONN_LOG_MSG->message);
+    free(connmgr_data->CONN_LOG_MSG);
+    free(connmgr_data); 
     // else log successfully destroyed connmgr
 }

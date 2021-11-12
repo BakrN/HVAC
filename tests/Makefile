@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -DDEBUG -Wall -I../ 
+CFLAGS = -DDEBUG -Wall -I../ -g 
 LIBS = -lsqlite3 -pthread 
 #DEPS = ../datamgr.h ../hashtable.h ../lib/dplist.h 
 #OBJ = datamgr_test.o ../hashtable.o ../datamgr.o ../lib/dplist.o

@@ -6,6 +6,7 @@
 extern pthread_rwlock_t connmgr_drop_sensor; 
 extern pthread_rwlock_t sbuffer_edit_mutex; 
 extern pthread_cond_t sbuffer_element_added; 
+int pollfd; 
 static hash_table* datamgr_table = NULL; 
 
 
@@ -28,9 +29,8 @@ void datamgr_parse_sensor_files(FILE *fp_sensor_map, FILE *fp_sensor_data){
         buffer += 2; 
         data->value = *(double*)buffer; 
         buffer += 8 ; 
-        data->ts = *(time_t*)buffer; 
-        
-       add_entry(datamgr_table, data); 
+        data->ts = *(time_t*)buffer;  
+        add_entry(datamgr_table, data); 
         buffer -=10; 
     }
   
@@ -193,9 +193,10 @@ dplist_t* datamgr_get_list_by_key(uint32_t key){
     return ((datamgr_table_entry*)entries[index])->list; 
 }
 
-int datamgr_add_table_entry(void* map, sensor_data_t* data){
+int datamgr_add_table_entry(void* map, void* args){
     // No mutex needed because no
     // steps: check if key exists if not create it 
+    sensor_data_t* data = (sensor_data_t*) args;
     uint32_t index = hash_key(data->id) ; 
     // searching if entry already exists (method of adding an entry is linear)
     if( get_entry_by_index(map, index) != NULL )

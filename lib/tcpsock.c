@@ -157,6 +157,7 @@ int tcp_wait_for_connection(tcpsock_t *socket, tcpsock_t **new_socket) {
     TCP_ERR_HANDLER(socket == NULL, return TCP_SOCKET_ERROR);
     TCP_ERR_HANDLER(socket->cookie != MAGIC_COOKIE, return TCP_SOCKET_ERROR);
     s = tcp_sock_create();
+
     TCP_ERR_HANDLER(s == NULL, return TCP_MEMORY_ERROR);
     s->sd = accept(socket->sd, (struct sockaddr *) &addr, &length);
     TCP_DEBUG_PRINTF(s->sd == -1, "Accept() failed with errno = %d [%s]", errno, strerror(errno));
@@ -167,6 +168,7 @@ int tcp_wait_for_connection(tcpsock_t *socket, tcpsock_t **new_socket) {
     s->ip_addr = strncpy(s->ip_addr, p, CHAR_IP_ADDR_LENGTH);
     s->port = ntohs(addr.sin_port);
     s->cookie = MAGIC_COOKIE;
+   
     *new_socket = s;
     return TCP_NO_ERROR;
 }

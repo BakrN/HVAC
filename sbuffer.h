@@ -16,17 +16,23 @@
 
 /*hash table implemenetation*/ 
 
+void sbuffer_element_free(void ** element); 
 
+int sbuffer_add_table_entry(void* map, void* arg); 
+void sbuffer_free_entry(void*entry); 
 
 //###############################################
 
+typedef struct{
+hash_table* map; 
+pthread_rwlock_t sbuffer_edit_mutex; 
+pthread_cond_t sbuffer_element_added; 
+sbuffer_table_entry* strmgr_iterator; // used to get next packet; points to entry of sbuffer
+sbuffer_table_entry* datamgr_iterator; // used to get next packet; points to entry of sbuffer
+} sbuffer_t; 
 
-typedef hash_table sbuffer_t;
-void sbuffer_element_free(void ** element); 
 
-int sbuffer_add_table_entry(void* map, sensor_data_t* data); 
-void sbuffer_free_entry(void*entry); 
-sbuffer_table_entry* get_next(hash_table* map, ENTRY_TYPE type); 
+sbuffer_table_entry* get_next(sbuffer_t* buffer, ENTRY_TYPE type); 
 
 /**
  * Allocates and initializes a new shared buffer
