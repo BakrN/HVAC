@@ -3,12 +3,6 @@
 
 
 
-extern pthread_rwlock_t connmgr_drop_sensor; 
-extern pthread_rwlock_t sbuffer_edit_mutex; 
-extern pthread_cond_t sbuffer_element_added; 
-int pollfd; 
-static hash_table* datamgr_table = NULL; 
-
 
 /**
  *  This method holds the core functionality of your datamgr. It takes in 2 file pointers to the sensor files and parses them. 
@@ -16,10 +10,47 @@ static hash_table* datamgr_table = NULL;
  *  \param fp_sensor_map file pointer to the map file
  *  \param fp_sensor_data file pointer to the binary data file
  */
-void datamgr_parse_sensor_files(FILE *fp_sensor_map, FILE *fp_sensor_data){
+void datamgr_init(void* args){
+
+    DATAMGR_DATA* datamgr_data = malloc(sizeof(DATAMGR_DATA));
+    sbuffer_t** s_ptr = (sbuffer_t**)(((char*)args) + sizeof(int) + sizeof(FILE*)); 
+    sbuffer_t** f_ptr = (FILE**)(((char*)args) + sizeof(int) ); 
+    FILE* fp_sensor_map = *f_ptr; 
+    sbuffer_t* buffer = *s_ptr; 
+    datamgr_data->datamgr_table = create_table(datamgr_free_entry, datamgr_add_table_entry, datamgr_initialize_table, fp_sensor_map);
+    datamgr_parse_sbuffer(datamgr_data, buffer); 
+}
+void datamgr_parse_sbuffer(DATAMGR_DATA* datamgr_data, sbuffer_t* buffer){
+    while(1){
+  
+    pthread_rwlock_rdlock(&datamgr_data->sbuffer_edit_mutex);
+    sbuffer_table_entry* entry_ptr = NULL; 
+    while(!(entry_ptr = get_next(buffer, DATA_ENTRY))){
+        pthread_cond_wait(&datamgr_data->sbuffer_element_added, &datamgr_data->sbuffer_edit_mutex); 
+    } 
+    pthread_rwlock_unlock(&datamgr_data->sbuffer_edit_mutex); 
+
+    pthread_rwlock_rdlock(&datamgr_data->sbuffer_edit_mutex); 
+    // reading data and modifying the var
+    dplist_node_t* current = dpl_get_first_reference(entry_ptr->list); 
+    int count =  entry_ptr->tbr_datamgr; 
+    for (int i = 0 ; i < count; i++){
+        add_entry(datamgr_data->datamgr_table, current->element); 
+        current = current->next; 
+    }
+    pthread_rwlock_unlock(&datamgr_data->sbuffer_edit_mutex) ; 
+    //
+    pthread_rwlock_wrlock(&datamgr_data->sbuffer_edit_mutex);
+        entry_ptr->tbr_datamgr -= count; 
+    pthread_rwlock_unlock(&datamgr_data->sbuffer_edit_mutex) ; 
+        
+    }
+} 
+
+/*void datamgr_parse_sensor_files(FILE *fp_sensor_map, FILE *fp_sensor_data){
     // check if files are not null 
     // create table if not createdd 
-    datamgr_table = create_table(datamgr_free_entry, datamgr_add_table_entry, datamgr_initialize_table, fp_sensor_map);
+    datamgr_table = 
     // binary file read 
   
     char* buffer = malloc(18); 
@@ -38,14 +69,16 @@ void datamgr_parse_sensor_files(FILE *fp_sensor_map, FILE *fp_sensor_data){
     buffer = 0; 
 
 }
+*/
 
 /**
  * This method should be called to clean up the datamgr, and to free all used memory. 
  * After this, any call to datamgr_get_room_id, datamgr_get_avg, datamgr_get_last_modified or datamgr_get_total_sensors will not return a valid result
  */
-void datamgr_free(){
-    destroy_table(datamgr_table); 
-    datamgr_table = NULL; 
+void datamgr_free(DATAMGR_DATA* datamgr_data){
+    destroy_table(datamgr_data->datamgr_table); 
+    free(datamgr_data); 
+
 }
 
 /**
@@ -54,8 +87,8 @@ void datamgr_free(){
  * \param sensor_id the sensor id to look for
  * \return the corresponding room id
  */
-uint16_t datamgr_get_room_id(sensor_id_t sensor_id){
-    datamgr_table_entry* ptr = (datamgr_table_entry*)get_entry_by_key(datamgr_table, sensor_id); 
+uint16_t datamgr_get_room_id(DATAMGR_DATA* datamgr_data,sensor_id_t sensor_id){
+    datamgr_table_entry* ptr = (datamgr_table_entry*)get_entry_by_key(datamgr_data->datamgr_table, sensor_id); 
     return ptr->room_id; 
 }
 
@@ -65,8 +98,8 @@ uint16_t datamgr_get_room_id(sensor_id_t sensor_id){
  * \param sensor_id the sensor id to look for
  * \return the running AVG of the given sensor
  */
-sensor_value_t datamgr_get_avg(sensor_id_t sensor_id){
-    datamgr_table_entry* ptr = (datamgr_table_entry*)get_entry_by_key(datamgr_table, sensor_id); 
+sensor_value_t datamgr_get_avg(DATAMGR_DATA* datamgr_data,sensor_id_t sensor_id){
+    datamgr_table_entry* ptr = (datamgr_table_entry*)get_entry_by_key(datamgr_data->datamgr_table, sensor_id); 
     
     return ptr->current_average; 
 }
@@ -77,8 +110,8 @@ sensor_value_t datamgr_get_avg(sensor_id_t sensor_id){
  * \param sensor_id the sensor id to look for
  * \return the last modified timestamp for the given sensor
  */
-time_t datamgr_get_last_modified(sensor_id_t sensor_id){
-     datamgr_table_entry* ptr = (datamgr_table_entry*)get_entry_by_key(datamgr_table, sensor_id); 
+time_t datamgr_get_last_modified(DATAMGR_DATA* datamgr_data,sensor_id_t sensor_id){
+     datamgr_table_entry* ptr = (datamgr_table_entry*)get_entry_by_key(datamgr_data->datamgr_table, sensor_id); 
     return ((sensor_data_t*)dpl_get_element_at_index(ptr->list, 0))->ts; 
 }
 
@@ -86,8 +119,8 @@ time_t datamgr_get_last_modified(sensor_id_t sensor_id){
  *  Return the total amount of unique sensor ID's recorded by the datamgr
  *  \return the total amount of sensors
  */
-int datamgr_get_total_sensors(){
-    return datamgr_table->count; // this is the number of unique sensor id by sensor map; 
+int datamgr_get_total_sensors(DATAMGR_DATA* datamgr_data){
+    return datamgr_data->datamgr_table->count; // this is the number of unique sensor id by sensor map; 
 }
 
 

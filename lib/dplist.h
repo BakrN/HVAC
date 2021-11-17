@@ -16,10 +16,21 @@ typedef enum {
 typedef struct dplist dplist_t;
 
 typedef struct dplist_node dplist_node_t;
+
 struct dplist_node {
 	dplist_node_t *prev, *next;
 	void *element;
 };
+struct dplist {
+	dplist_node_t *head;
+
+	void *(*element_copy)(void *src_element);
+
+	void (*element_free)(void **element);
+
+	int (*element_compare)(void *x, void *y);
+};
+
 /* General remark on error handling
  * All functions below will:
  * - use assert() to check if memory allocation was successfully.

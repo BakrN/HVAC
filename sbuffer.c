@@ -111,7 +111,10 @@ int sbuffer_add_table_entry(void* map, void* arg){
             if (entry->tbr_strmgr == 0 && entry->tbr_datamgr == 0){
                 // all elements read; 
                 // free list
-                          
+               
+                while(!(entry->list->head)){
+                    dpl_remove_at_index(entry->list, 0,1 ); 
+                } 
             }
 
             // Don't need mutex if only adding to index 0, just make sure you aren't checking prev

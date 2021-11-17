@@ -43,20 +43,14 @@ void connmgr_init(void *args)
     int port_number = *(int *)args; 
     
     CONNMGR_DATA* connmgr_data = malloc(sizeof(CONNMGR_DATA)); 
+    connmgr_data->data_conn_pipefd = *((int*)args + 1 ); 
     connmgr_data->CONN_LOG_MSG = malloc(sizeof(log_msg));
     connmgr_data->CONN_LOG_MSG->sequence_number = 1;
     connmgr_data->CONN_GATEWAY_FD = open("gateway.log", O_WRONLY);
     connmgr_data->socket_list = dpl_create(&tcp_element_copy, &tcp_element_free, &tcp_element_compare);
-    sbuffer_t** ptr = (sbuffer_t**)(((char*)args) + sizeof(int)); 
+    sbuffer_t** ptr = (sbuffer_t**)(((char*)args) + 2*sizeof(int)); 
     connmgr_data->buffer = *ptr; // long is same size as sbuffer_t*
-    if (!pipe2(connmgr_data->data_conn_pipefds, O_NONBLOCK))
-    {
-        connmgr_data->CONN_LOG_MSG->timestamp = time(0);
-        asprintf(&connmgr_data->CONN_LOG_MSG->message, "Datamgr Connmgr Pipe was opened successfully\n");
-        log_event(connmgr_data->CONN_GATEWAY_FD, connmgr_data->CONN_LOG_MSG);
-        free(connmgr_data->CONN_LOG_MSG->message);
-    }
-    
+ 
     //./sensor_test 101 15 127.0.0.1 1234
     
     connmgr_listen_to_port(port_number, connmgr_data);
@@ -81,7 +75,7 @@ void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
     tcp_get_sd(connmgr_data->server, &(connmgr_data->pollfds[0].fd));
    connmgr_data->pollfds[0].events = POLLHUP | POLLIN;
     // add read pipe to poll
-    connmgr_data->pollfds[1].fd = connmgr_data->data_conn_pipefds[0];
+    connmgr_data->pollfds[1].fd = connmgr_data->data_conn_pipefd;
     connmgr_data->pollfds[1].events = POLLIN;
     sensor_id_t id_to_be_dropped;
     tcp_element *temp = malloc(sizeof(tcp_element));
@@ -140,7 +134,7 @@ void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
         if (connmgr_data->pollfds[1].revents & POLLIN)
         { // handle input from datamgr;
 
-            while (read(connmgr_data->data_conn_pipefds[0], &id_to_be_dropped, sizeof(sensor_id_t) > 0))
+            while (read(connmgr_data->data_conn_pipefd, &id_to_be_dropped, sizeof(sensor_id_t) > 0))
             {
                 // drop sensors from here
                 temp->sensor_id = id_to_be_dropped;
@@ -274,8 +268,8 @@ void connmgr_destroy(CONNMGR_DATA* connmgr_data)
 {
 
     // close only read end of pipe but will close both for testing purposes
-    close(connmgr_data->data_conn_pipefds[0]);// read
-    close(connmgr_data->data_conn_pipefds[1]);//write
+    close(connmgr_data->data_conn_pipefd);// read
+    //close(connmgr_data->data_conn_pipefds[1]);//write
     if (tcp_close(&connmgr_data->server) != TCP_NO_ERROR)
     {
         // log failed to close connmgr_data->server ;

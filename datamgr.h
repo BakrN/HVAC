@@ -34,9 +34,14 @@
                     } while(0)
 
 
-extern pthread_rwlock_t sbuffer_edit_mutex; 
-extern pthread_cond_t sbuffer_element_added; 
+typedef struct{
+    pthread_rwlock_t connmgr_drop_sensor; 
+    pthread_rwlock_t sbuffer_edit_mutex; 
+    pthread_cond_t sbuffer_element_added; 
+    int pollfd; 
+    hash_table* datamgr_table; 
 
+} DATAMGR_DATA; 
 
 
 
@@ -52,7 +57,7 @@ void datamgr_parse_sensor_files(FILE *fp_sensor_map, FILE *fp_sensor_data);
  * This method should be called to clean up the datamgr, and to free all used memory. 
  * After this, any call to datamgr_get_room_id, datamgr_get_avg, datamgr_get_last_modified or datamgr_get_total_sensors will not return a valid result
  */
-void datamgr_free();
+void datamgr_free(DATAMGR_DATA* datamgr_data);
 
 /**
  * Gets the room ID for a certain sensor ID
@@ -95,7 +100,8 @@ void datamgr_initialize_table(void* map, void* file);
 int datamgr_add_table_entry(void* map, void* args); 
 void datamgr_free_entry(void*entry); 
 
-
+void datamgr_init(void* args); 
+void datamgr_parse_sbuffer(DATAMGR_DATA* datamgr_data, sbuffer_t* buffer); 
 //* TESTING FUNCS TO BE REMOVED LATER*/ 
 dplist_t* datamgr_get_list_by_key(uint32_t key); 
 

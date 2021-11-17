@@ -26,7 +26,7 @@ tcpsock_t *server; // server
 dplist_t *socket_list; // socket_list
 struct pollfd *pollfds; // polling field descriptors
 log_msg *CONN_LOG_MSG; // CONN_LOG_MSG withe sequence no. defined 
-int data_conn_pipefds[2]; // pipe field descroptors
+int data_conn_pipefd; // pipe field descroptors
 int CONN_GATEWAY_FD; // logging field desc
 sbuffer_t* buffer; // buffer where data should be placed
 } CONNMGR_DATA ; 

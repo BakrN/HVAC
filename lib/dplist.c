@@ -41,15 +41,6 @@
 
 
 
-struct dplist {
-	dplist_node_t *head;
-
-	void *(*element_copy)(void *src_element);
-
-	void (*element_free)(void **element);
-
-	int (*element_compare)(void *x, void *y);
-};
 
 	dplist_t *dpl_create(
 			void* (*element_copy)(void *element),
