@@ -1,7 +1,7 @@
 #include "logger.h"
 #include <ctype.h> 
 #include <string.h> 
-
+FILE* log_file; 
 void signal_handler(int signal){
     if (signal == SIGINT){
         #ifdef DEBUG
@@ -20,7 +20,7 @@ char* trim_string(char* str, size_t len){
 int log_init(){
   
     signal(SIGINT, signal_handler);
-    
+    log_file = fopen("Logging.log", "wr") ; 
  
     if(mkfifo("gateway.log", 0777) == -1){
         
@@ -58,6 +58,8 @@ int log_init(){
                 #ifdef DEBUG
                 printf("%s", buffer) ;
                 #endif
+                // printing to file 
+                fprintf(log_file, "%s\n", buffer); 
                 free(buffer); 
                 buffer = NULL; 
             }
@@ -81,7 +83,7 @@ void log_event(int write_fd, log_msg* event){
 
 
 void log_destroy(){
-   
+    close(log_file); 
     close(log_fd); 
     exit(1); 
 }

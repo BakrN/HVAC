@@ -1,9 +1,6 @@
 #include <stdio.h> 
 #include "datamgr.h" 
 
-
-
-
 /**
  *  This method holds the core functionality of your datamgr. It takes in 2 file pointers to the sensor files and parses them. 
  *  When the method finishes all data should be in the internal pointer list and all log messages should be printed to stderr.
@@ -21,29 +18,31 @@ void datamgr_init(void* args){
     datamgr_parse_sbuffer(datamgr_data, buffer); 
 }
 void datamgr_parse_sbuffer(DATAMGR_DATA* datamgr_data, sbuffer_t* buffer){
-    while(1){
+    while(1){ // while program is running 
   
-    pthread_rwlock_rdlock(&datamgr_data->sbuffer_edit_mutex);
+    pthread_rwlock_rdlock(&buffer->sbuffer_edit_mutex);
     sbuffer_table_entry* entry_ptr = NULL; 
     while(!(entry_ptr = get_next(buffer, DATA_ENTRY))){
-        pthread_cond_wait(&datamgr_data->sbuffer_element_added, &datamgr_data->sbuffer_edit_mutex); 
+        pthread_cond_wait(&buffer->sbuffer_element_added, &buffer->sbuffer_edit_mutex); 
     } 
-    pthread_rwlock_unlock(&datamgr_data->sbuffer_edit_mutex); 
+    pthread_rwlock_unlock(&buffer->sbuffer_edit_mutex); 
 
-    pthread_rwlock_rdlock(&datamgr_data->sbuffer_edit_mutex); 
-    // reading data and modifying the var
+    pthread_rwlock_rdlock(&buffer->sbuffer_edit_mutex); 
+
     dplist_node_t* current = dpl_get_first_reference(entry_ptr->list); 
     int count =  entry_ptr->tbr_datamgr; 
     for (int i = 0 ; i < count; i++){
         add_entry(datamgr_data->datamgr_table, current->element); 
         current = current->next; 
     }
-    pthread_rwlock_unlock(&datamgr_data->sbuffer_edit_mutex) ; 
+    pthread_rwlock_unlock(&buffer->sbuffer_edit_mutex) ; 
     //
-    pthread_rwlock_wrlock(&datamgr_data->sbuffer_edit_mutex);
+    
+    /*pthread_rwlock_wrlock(&buffer->sbuffer_edit_mutex);
         entry_ptr->tbr_datamgr -= count; 
-    pthread_rwlock_unlock(&datamgr_data->sbuffer_edit_mutex) ; 
-        
+    pthread_rwlock_unlock(&buffer->sbuffer_edit_mutex) ; */ 
+    sbuffer_update_entry(buffer, entry_ptr, DATA_ENTRY, count); 
+
     }
 } 
 
@@ -89,6 +88,7 @@ void datamgr_free(DATAMGR_DATA* datamgr_data){
  */
 uint16_t datamgr_get_room_id(DATAMGR_DATA* datamgr_data,sensor_id_t sensor_id){
     datamgr_table_entry* ptr = (datamgr_table_entry*)get_entry_by_key(datamgr_data->datamgr_table, sensor_id); 
+    ERROR_HANDLER(ptr == NULL && ptr->key != sensor_id,  "invalid sensorid ") ; 
     return ptr->room_id; 
 }
 
@@ -100,7 +100,7 @@ uint16_t datamgr_get_room_id(DATAMGR_DATA* datamgr_data,sensor_id_t sensor_id){
  */
 sensor_value_t datamgr_get_avg(DATAMGR_DATA* datamgr_data,sensor_id_t sensor_id){
     datamgr_table_entry* ptr = (datamgr_table_entry*)get_entry_by_key(datamgr_data->datamgr_table, sensor_id); 
-    
+    ERROR_HANDLER(ptr == NULL && ptr->key != sensor_id,  "invalid sensorid ") ; 
     return ptr->current_average; 
 }
 
@@ -112,6 +112,7 @@ sensor_value_t datamgr_get_avg(DATAMGR_DATA* datamgr_data,sensor_id_t sensor_id)
  */
 time_t datamgr_get_last_modified(DATAMGR_DATA* datamgr_data,sensor_id_t sensor_id){
      datamgr_table_entry* ptr = (datamgr_table_entry*)get_entry_by_key(datamgr_data->datamgr_table, sensor_id); 
+    ERROR_HANDLER(ptr == NULL && ptr->key != sensor_id,  "invalid sensorid ") ; 
     return ((sensor_data_t*)dpl_get_element_at_index(ptr->list, 0))->ts; 
 }
 
@@ -220,11 +221,11 @@ void datamgr_initialize_table(void* map, void* file){
 }
 
 //for testing
-dplist_t* datamgr_get_list_by_key(uint32_t key){
+/*dplist_t* datamgr_get_list_by_key(uint32_t key){
     uint32_t index = hash_key(key); 
-    long* entries = (long*)datamgr_table->entries; 
+    long* entries = (long*)datamgr_table->entries;
     return ((datamgr_table_entry*)entries[index])->list; 
-}
+}*/
 
 int datamgr_add_table_entry(void* map, void* args){
     // No mutex needed because no

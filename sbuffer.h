@@ -65,4 +65,6 @@ int sbuffer_remove(sbuffer_t *buffer, sensor_data_t *data);
 */
 int sbuffer_insert(sbuffer_t *buffer, sensor_data_t *data);
 
+void sbuffer_update_entry(sbuffer_t* buffer, sbuffer_table_entry* entry, ENTRY_TYPE type , int count); // 
+
 #endif  //_SBUFFER_H_

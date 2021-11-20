@@ -6,13 +6,10 @@
 #include "sbuffer.h"
 #include <memory.h>
 
-/**
- * basic node for the buffer, these nodes are linked together to create the buffer
- */
 
 
 /**
- * a structure to keep track of the buffer
+ * This code assumes that only this thread has access to the db
  */
 
 
@@ -176,7 +173,7 @@ sbuffer_table_entry* get_next(sbuffer_t* buffer, ENTRY_TYPE type){
     for(int i =0; i < HASH_TABLE_SIZE; i++){
         entry = (sbuffer_table_entry*) entries[i];      
         if(type == DATA_ENTRY){
-            if(entry != NULL && buffer->datamgr_iterator != entry && entry->tbr_datamgr> 0){
+            if(entry != NULL && entry->tbr_datamgr> 0){
                 
                 buffer->datamgr_iterator= entry; 
               pthread_rwlock_unlock(&(buffer->sbuffer_edit_mutex)); 
@@ -186,8 +183,7 @@ sbuffer_table_entry* get_next(sbuffer_t* buffer, ENTRY_TYPE type){
             return NULL; 
         }
         else{
-            if(entry != NULL && buffer->strmgr_iterator != entry && entry->tbr_strmgr> 0){
-              
+            if(entry != NULL  && entry->tbr_strmgr> 0){
                 buffer->strmgr_iterator = entry; 
                 pthread_rwlock_unlock(&(buffer->sbuffer_edit_mutex)); 
                 return entry;
@@ -200,3 +196,22 @@ sbuffer_table_entry* get_next(sbuffer_t* buffer, ENTRY_TYPE type){
        
 }
 
+void sbuffer_update_entry(sbuffer_t* buffer, sbuffer_table_entry* entry, ENTRY_TYPE type , int count){
+    if (count>0){
+
+        pthread_rwlock_wrlock(&buffer->sbuffer_edit_mutex); 
+        if(type==DATA_ENTRY){
+            entry->tbr_datamgr -= count ; 
+            
+        }
+        else{
+            entry->tbr_strmgr-=count; 
+        }
+        if(entry->tbr_strmgr == 0 && entry->tbr_datamgr == 0){
+            // you can free memory 
+            dpl_free(&entry->list, 1); 
+        }
+        pthread_rwlock_unlock(&buffer->sbuffer_edit_mutex); 
+
+    }
+}
