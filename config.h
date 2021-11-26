@@ -51,5 +51,9 @@ typedef struct {
     time_t timestamp; 
     char* message; 
 } log_msg; 
-
+typedef struct {
+char clear_flag; 
+char* terminate_thread; 
+    void* buffer; 
+}strgmgr_args; 
 #endif /* _CONFIG_H_ */

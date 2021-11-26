@@ -4,14 +4,11 @@
 #include "sbuffer.h"
 #include "logger.h"
 #define _GNU_SOURCE             /* See feature_test_macros(7) */
-#include <fcntl.h>              /* Obtain O_* constant definitions */
-#include <unistd.h>
-
-#include <poll.h>
-#include <malloc.h> 
 
 #include <pthread.h>
+#ifndef TIMEOUT
 #define TIMEOUT 6 // IN SECONDS
+#endif
 #define PORT 1234
 // list of sensors with last timestamp
 // list of client tcp sockets to store data in (might be better to auto write to sbuffer once data is received )
@@ -22,15 +19,17 @@ typedef struct
     time_t last_timestamp;
 } tcp_element;
 typedef struct {
-tcpsock_t *server; // server
-dplist_t *socket_list; // socket_list
-struct pollfd *pollfds; // polling field descriptors
-log_msg *CONN_LOG_MSG; // CONN_LOG_MSG withe sequence no. defined 
-int data_conn_pipefd; // pipe field descroptors
-int CONN_GATEWAY_FD; // logging field desc
-sbuffer_t* buffer; // buffer where data should be placed
+    tcpsock_t *server; // server
+    dplist_t *socket_list; // socket_list
+    struct pollfd *pollfds; // polling field descriptors
+    log_msg *CONN_LOG_MSG; // CONN_LOG_MSG withe sequence no. defined 
+    int data_conn_pipefd; // pipe field descroptors
+    int CONN_GATEWAY_FD; // logging field desc
+    sbuffer_t* buffer; // buffer where data should be placed
+    char* terminate_reader_threads; 
+    void* retval ;
 } CONNMGR_DATA ; 
-void connmgr_init(void *args); 
+void* connmgr_init(void *args); 
 
 void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data); 
 

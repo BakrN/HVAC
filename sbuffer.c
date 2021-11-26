@@ -6,18 +6,21 @@
 #include "sbuffer.h"
 #include <memory.h>
 
+/**
+ * basic node for the buffer, these nodes are linked together to create the buffer
+ */
 
 
 /**
- * This code assumes that only this thread has access to the db
+ * a structure to keep track of the buffer
  */
 
 
 int sbuffer_init(sbuffer_t **buffer) {
     sbuffer_t* ptr = malloc(sizeof(sbuffer_t)); 
     ptr->map = create_table(sbuffer_free_entry, sbuffer_add_table_entry, NULL, NULL); 
-    pthread_rwlock_init(&ptr->sbuffer_edit_mutex,NULL); 
-    pthread_cond_init(&ptr->sbuffer_element_added, NULL); 
+    pthread_rwlock_init(&(ptr->sbuffer_edit_mutex),NULL); 
+    pthread_cond_init(&(ptr->sbuffer_element_added), NULL); 
     *buffer = ptr; 
     if (*buffer == NULL){return SBUFFER_FAILURE; } 
     return SBUFFER_SUCCESS;
@@ -167,7 +170,9 @@ void sbuffer_element_free(void ** element){
 
 sbuffer_table_entry* get_next(sbuffer_t* buffer, ENTRY_TYPE type){
     pthread_rwlock_rdlock(&(buffer->sbuffer_edit_mutex)); 
+
     hash_table* map = buffer->map; 
+   
     long* entries =  map->entries;  
     sbuffer_table_entry* entry; 
     for(int i =0; i < HASH_TABLE_SIZE; i++){

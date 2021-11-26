@@ -27,7 +27,7 @@ void command_callback(void* arg , int col_no, char** result, char** col_names){
     return ;
 }
 
-int create_table(DBCONN* db){
+int create_dbtable(DBCONN* db){
 
     char cr[180] = "CREATE TABLE IF NOT EXISTS "; 
     strcat(cr,TO_STRING(TABLE_NAME)); 
@@ -45,7 +45,17 @@ int create_table(DBCONN* db){
 }
 
 // THIS CODE ASSUMES THAT ONLY 1 THREAD HAS ACCESS TO THE DB 
-
+void* strgmgr_init(void* args){
+  
+    strgmgr_args* ptr = (strgmgr_args*)args; 
+    STRGMGR_DATA* strgmgr_data = strmgr_init_connection(ptr->clear_flag); 
+    strgmgr_data->terminate_reader_thread = ptr->terminate_thread; 
+    // while loop
+    insert_sensor_from_sbuffer(strgmgr_data, ptr->buffer);  
+    // 
+    disconnect(strgmgr_data); 
+    return NULL; 
+}
 
 /**
  * Make a connection to the database server
@@ -76,7 +86,7 @@ STRGMGR_DATA* strmgr_init_connection(char clear_up_flag){
   
             // log opened database successfully
             // check if table name exists else create it; 
-    create_table(strgmgr_data->db);
+    create_dbtable(strgmgr_data->db);
     // log table opened successfully    
     strgmgr_data->DB_LOG_MSG->timestamp = time(0); 
     asprintf(&strgmgr_data->DB_LOG_MSG->message, "Table with name (%s) opened successully", TO_STRING(TABLE_NAME)); 
@@ -185,15 +195,22 @@ void* init_strgmgr(void* args){
 
 int insert_sensor_from_sbuffer(STRGMGR_DATA *strmgr_data, sbuffer_t* buffer){
 
-    while (1) {
-        pthread_rwlock_rdlock(&buffer->sbuffer_edit_mutex);
     sbuffer_table_entry* entry_ptr = NULL; 
-    while(!(entry_ptr = get_next(buffer, STORE_ENTRY))){
-        pthread_cond_wait(&buffer->sbuffer_element_added, &buffer->sbuffer_edit_mutex); // puts thread to sleep until another thread broadcasts condition 
-    } 
-    pthread_rwlock_unlock(&buffer->sbuffer_edit_mutex); 
+    while (!(*(strmgr_data->terminate_reader_thread)) | (entry_ptr =get_next(buffer, STORE_ENTRY))!= NULL) {
+    if(entry_ptr == NULL){
+       
+        while( *(strmgr_data->terminate_reader_thread) == 0 && !(entry_ptr = get_next(buffer, STORE_ENTRY))) {
+            // both threads are stuck 
+            pthread_cond_wait(&(buffer->sbuffer_element_added), &(buffer->sbuffer_edit_mutex)); // puts thread to sleep until another thread broadcasts condition 
+        } 
 
-    pthread_rwlock_rdlock(&buffer->sbuffer_edit_mutex); 
+        if(*(strmgr_data->terminate_reader_thread)){// woken up due to termination
+        printf("strgmgr woke up\n"); 
+            return 0; 
+        }
+    }
+
+pthread_rwlock_rdlock(&(buffer->sbuffer_edit_mutex)); 
 
     dplist_node_t* current = dpl_get_first_reference(entry_ptr->list); 
     int count =  entry_ptr->tbr_datamgr; 
@@ -203,10 +220,13 @@ int insert_sensor_from_sbuffer(STRGMGR_DATA *strmgr_data, sbuffer_t* buffer){
         current = current->next; 
 
     }
-    pthread_rwlock_unlock(&buffer->sbuffer_edit_mutex) ; 
+    pthread_rwlock_unlock(&(buffer->sbuffer_edit_mutex)) ; 
     sbuffer_update_entry(buffer, entry_ptr, STORE_ENTRY, count); 
 
     }
+
+    //terminated 
+    return 0; 
 }
 /**
  * Write a SELECT query to select all sensor measurements in the table 

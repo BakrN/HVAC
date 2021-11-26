@@ -2,7 +2,7 @@ TITLE_COLOR = \033[33m
 NO_COLOR = \033[0m
 
 # when executing make, compile all exe's
-all: sensor_gateway sensor_node file_creator
+all: sensor_gateway  file_creator
 
 # When trying to compile one of the executables, first look for its .c files
 # Then check if the libraries are in the lib folder
@@ -10,23 +10,20 @@ sensor_gateway : main.c connmgr.c datamgr.c sensor_db.c sbuffer.c lib/libdplist.
 	@echo "$(TITLE_COLOR)\n***** CPPCHECK *****$(NO_COLOR)"
 	cppcheck --enable=all --suppress=missingIncludeSystem main.c connmgr.c datamgr.c sensor_db.c sbuffer.c
 	@echo "$(TITLE_COLOR)\n***** COMPILING sensor_gateway *****$(NO_COLOR)"
-	gcc -c main.c      -Wall -std=c11 -Werror -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -o main.o      -fdiagnostics-color=auto
-	gcc -c connmgr.c   -Wall -std=c11 -Werror -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -o connmgr.o   -fdiagnostics-color=auto
-	gcc -c datamgr.c   -Wall -std=c11 -Werror -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -o datamgr.o   -fdiagnostics-color=auto
-	gcc -c sensor_db.c -Wall -std=c11 -Werror -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -o sensor_db.o -fdiagnostics-color=auto
-	gcc -c sbuffer.c   -Wall -std=c11 -Werror -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -o sbuffer.o   -fdiagnostics-color=auto
+	gcc -g -c main.c      -Wall -std=gnu99 -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -o main.o      -fdiagnostics-color=auto
+	gcc -g -c connmgr.c   -Wall -std=gnu99 -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -o connmgr.o   -fdiagnostics-color=auto
+	gcc -g -c datamgr.c   -Wall -std=gnu99 -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -o datamgr.o   -fdiagnostics-color=auto
+	gcc -g -c sensor_db.c -Wall -std=gnu99 -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -o sensor_db.o -fdiagnostics-color=auto
+	gcc -g -c sbuffer.c   -Wall -std=gnu99 -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -o sbuffer.o   -fdiagnostics-color=auto
+	gcc -g -c hashtable.c   -Wall -std=gnu99 -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -o hashtable.o   -fdiagnostics-color=auto
+	gcc -g -c logger.c   -Wall -std=gnu99 -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -o logger.o   -fdiagnostics-color=auto
 	@echo "$(TITLE_COLOR)\n***** LINKING sensor_gateway *****$(NO_COLOR)"
-	gcc main.o connmgr.o datamgr.o sensor_db.o sbuffer.o -ldplist -ltcpsock -lpthread -o sensor_gateway -Wall -L./lib -Wl,-rpath=./lib -lsqlite3 -fdiagnostics-color=auto
+	gcc hashtable.o logger.o main.o connmgr.o datamgr.o sensor_db.o sbuffer.o -ldplist -ltcpsock -lpthread -o sensor_gateway -Wall -L./lib -Wl,-rpath=./lib -lsqlite3 -fdiagnostics-color=auto
 
 file_creator : file_creator.c
 	@echo "$(TITLE_COLOR)\n***** COMPILE & LINKING file_creator *****$(NO_COLOR)"
 	gcc file_creator.c -o file_creator -Wall -fdiagnostics-color=auto
 
-sensor_node : sensor_node.c lib/libtcpsock.so
-	@echo "$(TITLE_COLOR)\n***** COMPILING sensor_node *****$(NO_COLOR)"
-	gcc -c sensor_node.c -Wall -std=c11 -Werror -o sensor_node.o -fdiagnostics-color=auto
-	@echo "$(TITLE_COLOR)\n***** LINKING sensor_node *****$(NO_COLOR)"
-	gcc sensor_node.o -ltcpsock -o sensor_node -Wall -L./lib -Wl,-rpath=./lib -fdiagnostics-color=auto
 
 # If you only want to compile one of the libs, this target will match (e.g. make liblist)
 libdplist : lib/libdplist.so
@@ -48,12 +45,12 @@ lib/libtcpsock.so : lib/tcpsock.c
 .PHONY : clean clean-all run zip
 
 clean:
-	rm -rf *.o sensor_gateway sensor_node file_creator *~
+	rm -rf *.o sensor_gateway  file_creator *~
 
 clean-all: clean
 	rm -rf lib/*.so
 
-run : sensor_gateway sensor_node
+run : sensor_gateway 
 	@echo "Add your own implementation here..."
 
 zip:

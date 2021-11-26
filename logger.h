@@ -10,7 +10,6 @@
 #include "config.h"
 #include <signal.h>
 
-static int log_fd; 
 
 int log_init();// Fork Process 
 

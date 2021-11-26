@@ -34,11 +34,14 @@ typedef int (*callback_t)(void *, int, char **, char **);
 
 
 typedef struct {
-int DB_GATEWAY_FD; 
-log_msg* DB_LOG_MSG; 
-DBCONN* db; 
+  int DB_GATEWAY_FD; 
+  log_msg* DB_LOG_MSG; 
+  DBCONN* db; 
+  char* terminate_reader_thread; 
+  void* retval ; 
 } STRGMGR_DATA; 
 
+void* strgmgr_init(void* args); 
 /**
  * Make a connection to the database server
  * Create (open) a database with name DB_NAME having 1 table named TABLE_NAME  

@@ -14,13 +14,15 @@
 #ifndef RUN_AVG_LENGTH
 #define RUN_AVG_LENGTH 5
 #endif
-#define SET_MAX_TEMP 40
+
 #ifndef SET_MAX_TEMP
-#error SET_MAX_TEMP not set
+#define SET_MAX_TEMP 40
+//#error SET_MAX_TEMP not set
 #endif
-#define SET_MIN_TEMP 5
+
 #ifndef SET_MIN_TEMP
-#error SET_MIN_TEMP not set
+#define SET_MIN_TEMP 5
+//#error SET_MIN_TEMP not set
 #endif
 
 /*
@@ -35,10 +37,11 @@
 
 
 typedef struct{
-    pthread_rwlock_t connmgr_drop_sensor; 
+  
     int pollfd; 
     hash_table* datamgr_table; 
-
+    char* terminate_reader_thread; 
+    void* retval ;
 } DATAMGR_DATA; 
 
 
@@ -98,7 +101,7 @@ void datamgr_initialize_table(void* map, void* file);
 int datamgr_add_table_entry(void* map, void* args); 
 void datamgr_free_entry(void*entry); 
 
-void datamgr_init(void* args); 
+void* datamgr_init(void* args); 
 void datamgr_parse_sbuffer(DATAMGR_DATA* datamgr_data, sbuffer_t* buffer); 
 //* TESTING FUNCS TO BE REMOVED LATER*/ 
 dplist_t* datamgr_get_list_by_key(uint32_t key); 

@@ -1,5 +1,12 @@
 #include "connmgr.h"
 
+#include <fcntl.h>              /* Obtain O_* constant definitions */
+#include <unistd.h>
+#include <stdio.h>
+#include <stdint.h> 
+#include <poll.h>
+#include <malloc.h> 
+
 //
 
 // NOTE SHOULD PROBABLY KEEP TRACK OF SENSOR IDS SO THAT IF THEY TRY TO CONNECT AGAIN I REFUSE THEM 
@@ -38,7 +45,7 @@ void* tcp_element_copy(void *src )
     ptr->sensor_id = ((tcp_element*)src)->sensor_id; 
     return ptr; 
 }
-void connmgr_init(void *args)
+void* connmgr_init(void *args)
 {   
     int port_number = *(int *)args; 
     
@@ -49,18 +56,21 @@ void connmgr_init(void *args)
     connmgr_data->CONN_GATEWAY_FD = open("gateway.log", O_WRONLY);
     connmgr_data->socket_list = dpl_create(&tcp_element_copy, &tcp_element_free, &tcp_element_compare);
     sbuffer_t** ptr = (sbuffer_t**)(((char*)args) + 2*sizeof(int)); 
+    char** c_ptr = (char**)((char*)args + 2*sizeof(int) + sizeof(sbuffer_t*)); 
     connmgr_data->buffer = *ptr; // long is same size as sbuffer_t*
- 
+    connmgr_data->terminate_reader_threads = *c_ptr; 
     //./sensor_test 101 15 127.0.0.1 1234
     
     connmgr_listen_to_port(port_number, connmgr_data);
-    // open pipe to datagmr
+    connmgr_destroy(connmgr_data); 
+    return NULL; 
 }
 void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
 {
     if (port_number < MIN_PORT || port_number > MAX_PORT)
     {
         // log invalid port
+        
         return;
     }
 
@@ -69,7 +79,8 @@ void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
     connmgr_data->pollfds = malloc(2 * sizeof(struct pollfd));
     if (tcp_passive_open(&connmgr_data->server, PORT) != TCP_NO_ERROR)
     {
-        // log failed to setup connmgr_data->server
+        // log failed to setup connmgr_data->server and exit 
+        return ; 
     }
     int conn_count = 0;
     tcp_get_sd(connmgr_data->server, &(connmgr_data->pollfds[0].fd));
@@ -81,11 +92,11 @@ void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
     tcp_element *temp = malloc(sizeof(tcp_element));
     temp->socket = malloc(sizeof(tcpsock_t));
 
-    while (poll(connmgr_data->pollfds, conn_count + 2, 10000) > 0 || conn_count)
+    while (poll(connmgr_data->pollfds, conn_count + 2, 1000) > 0)
     { // revents are cleared by poll function
-#ifdef DEBUG
+    #ifdef DEBUG
         printf("Current clients count: %d \n", conn_count);
-#endif
+    #endif
         if (connmgr_data->pollfds[0].revents & POLLIN)
         {
             tcp_element *entry = malloc(sizeof(tcp_element));// leak somehow
@@ -261,7 +272,7 @@ void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
     }
     free(temp->socket);
     free(temp);
-    connmgr_destroy(connmgr_data);
+
 }
 
 void connmgr_destroy(CONNMGR_DATA* connmgr_data)
@@ -281,6 +292,10 @@ void connmgr_destroy(CONNMGR_DATA* connmgr_data)
     log_event(connmgr_data->CONN_GATEWAY_FD, connmgr_data->CONN_LOG_MSG);
     free(connmgr_data->CONN_LOG_MSG->message);
     free(connmgr_data->CONN_LOG_MSG);
+    *(connmgr_data->terminate_reader_threads) = 1; 
+    pthread_rwlock_wrlock(&(connmgr_data->buffer->sbuffer_edit_mutex)); 
+    pthread_cond_broadcast(&(connmgr_data->buffer->sbuffer_element_added )); // wake up other threads if they're asleep 
+    pthread_rwlock_unlock(&(connmgr_data->buffer->sbuffer_edit_mutex)); 
     free(connmgr_data); 
     // else log successfully destroyed connmgr
 }

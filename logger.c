@@ -2,6 +2,7 @@
 #include <ctype.h> 
 #include <string.h> 
 FILE* log_file; 
+static int log_fd;
 void signal_handler(int signal){
     if (signal == SIGINT){
         #ifdef DEBUG

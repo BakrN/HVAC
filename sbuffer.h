@@ -5,11 +5,10 @@
 
 #ifndef _SBUFFER_H_
 #define _SBUFFER_H_
-
+#define _GNU_SOURCE
 #include "config.h"
 #include "hashtable.h"
-
-#include <pthread.h>
+#include <pthread.h> 
 #define SBUFFER_FAILURE -1
 #define SBUFFER_SUCCESS 0
 #define SBUFFER_NO_DATA 1
@@ -22,6 +21,7 @@ int sbuffer_add_table_entry(void* map, void* arg);
 void sbuffer_free_entry(void*entry); 
 
 //###############################################
+
 
 typedef struct{
 hash_table* map; 

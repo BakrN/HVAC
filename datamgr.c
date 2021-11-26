@@ -1,5 +1,10 @@
-#include <stdio.h> 
+ 
+
 #include "datamgr.h" 
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+
 
 /**
  *  This method holds the core functionality of your datamgr. It takes in 2 file pointers to the sensor files and parses them. 
@@ -7,43 +12,61 @@
  *  \param fp_sensor_map file pointer to the map file
  *  \param fp_sensor_data file pointer to the binary data file
  */
-void datamgr_init(void* args){
+void *datamgr_init(void* args){
 
     DATAMGR_DATA* datamgr_data = malloc(sizeof(DATAMGR_DATA));
     sbuffer_t** s_ptr = (sbuffer_t**)(((char*)args) + sizeof(int) + sizeof(FILE*)); 
-    sbuffer_t** f_ptr = (FILE**)(((char*)args) + sizeof(int) ); 
+    FILE** f_ptr = (FILE**)(((char*)args) + sizeof(int) ); 
+    int pipefd = *(int*)(args); 
     FILE* fp_sensor_map = *f_ptr; 
     sbuffer_t* buffer = *s_ptr; 
+    char** t_ptr = (char**)(((char*)args) + sizeof(int) + sizeof(FILE*)+ sizeof(sbuffer_t*)); 
     datamgr_data->datamgr_table = create_table(datamgr_free_entry, datamgr_add_table_entry, datamgr_initialize_table, fp_sensor_map);
+    datamgr_data->pollfd = pipefd; 
+    datamgr_data->terminate_reader_thread = *t_ptr; 
     datamgr_parse_sbuffer(datamgr_data, buffer); 
+    printf("RETURNED FROM PARSING SBUFFER\n"); 
+    datamgr_free(datamgr_data); 
+    return NULL; 
 }
 void datamgr_parse_sbuffer(DATAMGR_DATA* datamgr_data, sbuffer_t* buffer){
-    while(1){ // while program is running 
-  
-    pthread_rwlock_rdlock(&buffer->sbuffer_edit_mutex);
     sbuffer_table_entry* entry_ptr = NULL; 
-    while(!(entry_ptr = get_next(buffer, DATA_ENTRY))){
-        pthread_cond_wait(&buffer->sbuffer_element_added, &buffer->sbuffer_edit_mutex); 
-    } 
-    pthread_rwlock_unlock(&buffer->sbuffer_edit_mutex); 
+    while(!(*(datamgr_data->terminate_reader_thread)) | (entry_ptr=get_next(buffer,DATA_ENTRY))!= NULL){ //not terminating threads or there are values still in sbuffer 
+    
+      
+            if(entry_ptr==NULL){
 
-    pthread_rwlock_rdlock(&buffer->sbuffer_edit_mutex); 
+                while(*(datamgr_data->terminate_reader_thread)==0 &&!(entry_ptr = get_next(buffer, DATA_ENTRY)) ){
+                    pthread_cond_wait(&(buffer->sbuffer_element_added), &(buffer->sbuffer_edit_mutex)); 
+                }
+          
 
-    dplist_node_t* current = dpl_get_first_reference(entry_ptr->list); 
-    int count =  entry_ptr->tbr_datamgr; 
-    for (int i = 0 ; i < count; i++){
-        add_entry(datamgr_data->datamgr_table, current->element); 
-        current = current->next; 
-    }
-    pthread_rwlock_unlock(&buffer->sbuffer_edit_mutex) ; 
+            if(*(datamgr_data->terminate_reader_thread)){// woken up due to termination
+            printf("Datamgr woke up\n"); 
+                return ; 
+            } 
+        }
+     
+     
+        pthread_rwlock_rdlock(&(buffer->sbuffer_edit_mutex)); 
+
+        dplist_node_t* current = dpl_get_first_reference(entry_ptr->list); 
+        int count =  entry_ptr->tbr_datamgr; 
+        for (int i = 0 ; i < count; i++){
+            add_entry(datamgr_data->datamgr_table, current->element); 
+            current = current->next; 
+        }
+        pthread_rwlock_unlock(&(buffer->sbuffer_edit_mutex)) ; 
     //
     
-    /*pthread_rwlock_wrlock(&buffer->sbuffer_edit_mutex);
+    /*pthread_rwlock_wrlock(&(buffer->sbuffer_edit_mutex));
         entry_ptr->tbr_datamgr -= count; 
-    pthread_rwlock_unlock(&buffer->sbuffer_edit_mutex) ; */ 
-    sbuffer_update_entry(buffer, entry_ptr, DATA_ENTRY, count); 
+    pthread_rwlock_unlock(&(buffer->sbuffer_edit_mutex)) ; */ 
+        sbuffer_update_entry(buffer, entry_ptr, DATA_ENTRY, count); 
 
     }
+    //terminated 
+    return ; 
 } 
 
 /*void datamgr_parse_sensor_files(FILE *fp_sensor_map, FILE *fp_sensor_data){
@@ -76,6 +99,9 @@ void datamgr_parse_sbuffer(DATAMGR_DATA* datamgr_data, sbuffer_t* buffer){
  */
 void datamgr_free(DATAMGR_DATA* datamgr_data){
     destroy_table(datamgr_data->datamgr_table); 
+
+    close(datamgr_data->pollfd ); 
+
     free(datamgr_data); 
 
 }
