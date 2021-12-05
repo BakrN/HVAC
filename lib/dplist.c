@@ -306,11 +306,7 @@ dplist_node_t *dpl_get_first_reference(dplist_t *list){
 	if(list==NULL || list->head == NULL){
 		return NULL; 
 	}
-	dplist_node_t* current = list->head; 
-	while(current->prev != NULL){
-		current = current->prev; 
-	}
-	return current; 
+	return list->head; 
 }
 
 

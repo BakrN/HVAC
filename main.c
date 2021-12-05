@@ -1,3 +1,4 @@
+
 #define _GNU_SOURCE
 #include "datamgr.h"
 #include "connmgr.h"
@@ -6,17 +7,7 @@
 #include <memory.h>
   #include <sys/types.h>
   #include <sys/wait.h>
-typedef struct{
 
-}connmgr_args ; 
-
-
-
-typedef struct{
-    int pipefd; //write
-    char* TERMINATE_READER; 
-    FILE* fp_sensor_map; 
-}datamgr_args ; 
 
 int main(int argc, char* argv[]){
         int port;
@@ -42,11 +33,12 @@ int main(int argc, char* argv[]){
     sbuffer_t* buffer1;
     sbuffer_init(&buffer1); 
     //connmgr_args
-    char* connmgr_args = malloc(2*sizeof(int) + sizeof(sbuffer_t*)+sizeof(char*)); 
-    memcpy(connmgr_args, &port, sizeof(int)); 
-    memcpy((void*)(connmgr_args+sizeof(int)),data_conn_pipefds, sizeof(int));
-    memcpy((void*)(connmgr_args+2*sizeof(int)),&buffer1, sizeof(sbuffer_t*));
-    memcpy((void*)(connmgr_args+2*sizeof(int) +sizeof(sbuffer_t*)),&TERMINATE_READER_THREADS, sizeof(char*));
+    conn_args* connmgr_args = malloc(sizeof(conn_args)); 
+    connmgr_args->port_number = port; 
+    connmgr_args->pipefd = data_conn_pipefds[0]; 
+    connmgr_args->buffer =(void*) buffer1;  
+    connmgr_args->terminate_reader_threads= TERMINATE_READER_THREADS; 
+
     //
     //datamgr_args
     FILE* fp_sensor_map = fopen("room_sensor.map", "r"); // closed in datamgr_init
@@ -78,7 +70,7 @@ int main(int argc, char* argv[]){
     sbuffer_free(&buffer1);
     printf("FREED SBUFFER\n"); 
     kill(logger_process, SIGINT) ; 
-    printf("KILLLEd lgoger\n");
+    printf("KILLLEd logger\n");
     wait(NULL); 
     return 0 ; 
 }

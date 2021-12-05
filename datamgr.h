@@ -5,8 +5,7 @@
 #ifndef DATAMGR_H_
 #define DATAMGR_H_
 
-#include <stdlib.h>
-#include <stdio.h>
+
 #include "sbuffer.h"
 #include "config.h"
 #include "hashtable.h"

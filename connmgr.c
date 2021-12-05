@@ -47,21 +47,22 @@ void* tcp_element_copy(void *src )
 }
 void* connmgr_init(void *args)
 {   
-    int port_number = *(int *)args; 
+
     
     CONNMGR_DATA* connmgr_data = malloc(sizeof(CONNMGR_DATA)); 
-    connmgr_data->data_conn_pipefd = *((int*)args + 1 ); 
+    conn_args* c_args  = (conn_args *)args; 
+
+    connmgr_data->data_conn_pipefd = c_args->pipefd; 
     connmgr_data->CONN_LOG_MSG = malloc(sizeof(log_msg));
     connmgr_data->CONN_LOG_MSG->sequence_number = 1;
     connmgr_data->CONN_GATEWAY_FD = open("gateway.log", O_WRONLY);
     connmgr_data->socket_list = dpl_create(&tcp_element_copy, &tcp_element_free, &tcp_element_compare);
-    sbuffer_t** ptr = (sbuffer_t**)(((char*)args) + 2*sizeof(int)); 
-    char** c_ptr = (char**)((char*)args + 2*sizeof(int) + sizeof(sbuffer_t*)); 
-    connmgr_data->buffer = *ptr; // long is same size as sbuffer_t*
-    connmgr_data->terminate_reader_threads = *c_ptr; 
+
+    connmgr_data->buffer = (sbuffer_t*) c_args->buffer; // long is same size as sbuffer_t*
+    connmgr_data->terminate_reader_threads = c_args->terminate_reader_threads; 
     //./sensor_test 101 15 127.0.0.1 1234
     
-    connmgr_listen_to_port(port_number, connmgr_data);
+    connmgr_listen_to_port(c_args->port_number, connmgr_data);
     connmgr_destroy(connmgr_data); 
     return NULL; 
 }
@@ -92,7 +93,7 @@ void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
     tcp_element *temp = malloc(sizeof(tcp_element));
     temp->socket = malloc(sizeof(tcpsock_t));
 
-    while (poll(connmgr_data->pollfds, conn_count + 2, 1000) > 0)
+    while (poll(connmgr_data->pollfds, conn_count + 2, 10000) > 0)
     { // revents are cleared by poll function
     #ifdef DEBUG
         printf("Current clients count: %d \n", conn_count);
@@ -145,9 +146,10 @@ void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
         if (connmgr_data->pollfds[1].revents & POLLIN)
         { // handle input from datamgr;
 
-            while (read(connmgr_data->data_conn_pipefd, &id_to_be_dropped, sizeof(sensor_id_t) > 0))
+            while (read(connmgr_data->data_conn_pipefd, &id_to_be_dropped, sizeof(sensor_id_t)) > 0)
             {
                 // drop sensors from here
+
                 temp->sensor_id = id_to_be_dropped;
                 dplist_node_t *node = dpl_get_reference_of_element(connmgr_data->socket_list, temp);
                 for (int i = 2; i < conn_count + 2; i++)
@@ -155,7 +157,7 @@ void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
                     if (connmgr_data->pollfds[i].fd == ((tcp_element *)(node->element))->socket->sd)
                     {
 
-                      
+                    
                         dpl_remove_at_reference(connmgr_data->socket_list, node, 1);
                       
                         for (int j = i; j < conn_count + 1; j++)
@@ -165,16 +167,21 @@ void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
                         conn_count--;
                        
                         connmgr_data->pollfds = realloc(connmgr_data->pollfds, sizeof(struct pollfd) * (2 + conn_count));
-
+                     
                         break;
                     }
+                    node = node->next ;
                 }
+                
             }
+            // send message to db to delete stuff with sensor id 
+            
+      
         }
               
         for (int i = 2; i < conn_count + 2; i++)
         {
-       
+
             if (connmgr_data->pollfds[i].revents & POLLHUP){
                 #ifdef DEBUG
                     printf("POLLHUP DETECTED\n"); 
@@ -293,9 +300,9 @@ void connmgr_destroy(CONNMGR_DATA* connmgr_data)
     free(connmgr_data->CONN_LOG_MSG->message);
     free(connmgr_data->CONN_LOG_MSG);
     *(connmgr_data->terminate_reader_threads) = 1; 
-    pthread_rwlock_wrlock(&(connmgr_data->buffer->sbuffer_edit_mutex)); 
+    pthread_mutex_lock(&(connmgr_data->buffer->sbuffer_edit_mutex)); 
     pthread_cond_broadcast(&(connmgr_data->buffer->sbuffer_element_added )); // wake up other threads if they're asleep 
-    pthread_rwlock_unlock(&(connmgr_data->buffer->sbuffer_edit_mutex)); 
+    pthread_mutex_unlock(&(connmgr_data->buffer->sbuffer_edit_mutex)); 
     free(connmgr_data); 
     // else log successfully destroyed connmgr
 }

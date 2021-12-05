@@ -10,13 +10,13 @@ sensor_gateway : main.c connmgr.c datamgr.c sensor_db.c sbuffer.c lib/libdplist.
 	@echo "$(TITLE_COLOR)\n***** CPPCHECK *****$(NO_COLOR)"
 	cppcheck --enable=all --suppress=missingIncludeSystem main.c connmgr.c datamgr.c sensor_db.c sbuffer.c
 	@echo "$(TITLE_COLOR)\n***** COMPILING sensor_gateway *****$(NO_COLOR)"
-	gcc -g -c main.c      -Wall -std=gnu99 -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -o main.o      -fdiagnostics-color=auto
-	gcc -g -c connmgr.c   -Wall -std=gnu99 -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -o connmgr.o   -fdiagnostics-color=auto
-	gcc -g -c datamgr.c   -Wall -std=gnu99 -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -o datamgr.o   -fdiagnostics-color=auto
-	gcc -g -c sensor_db.c -Wall -std=gnu99 -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -o sensor_db.o -fdiagnostics-color=auto
-	gcc -g -c sbuffer.c   -Wall -std=gnu99 -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -o sbuffer.o   -fdiagnostics-color=auto
-	gcc -g -c hashtable.c   -Wall -std=gnu99 -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -o hashtable.o   -fdiagnostics-color=auto
-	gcc -g -c logger.c   -Wall -std=gnu99 -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -o logger.o   -fdiagnostics-color=auto
+	gcc -g -c main.c      -Wall -std=gnu99 -DDEBUG -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=6 -o main.o      -fdiagnostics-color=auto
+	gcc -g -c connmgr.c   -Wall -std=gnu99 -DDEBUG -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=6 -o connmgr.o   -fdiagnostics-color=auto
+	gcc -g -c datamgr.c   -Wall -std=gnu99 -DDEBUG -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=6 -o datamgr.o   -fdiagnostics-color=auto
+	gcc -g -c sensor_db.c -Wall -std=gnu99 -DDEBUG -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=6 -o sensor_db.o -fdiagnostics-color=auto
+	gcc -g -c sbuffer.c   -Wall -std=gnu99 -DDEBUG -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=6 -o sbuffer.o   -fdiagnostics-color=auto
+	gcc -g -c hashtable.c   -Wall -std=gnu99 -DDDEBUG -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=6 -o hashtable.o   -fdiagnostics-color=auto
+	gcc -g -c logger.c   -Wall -std=gnu99 -DDDEBUG -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=6 -o logger.o   -fdiagnostics-color=auto
 	@echo "$(TITLE_COLOR)\n***** LINKING sensor_gateway *****$(NO_COLOR)"
 	gcc hashtable.o logger.o main.o connmgr.o datamgr.o sensor_db.o sbuffer.o -ldplist -ltcpsock -lpthread -o sensor_gateway -Wall -L./lib -Wl,-rpath=./lib -lsqlite3 -fdiagnostics-color=auto
 

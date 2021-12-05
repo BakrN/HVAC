@@ -31,37 +31,46 @@ void *datamgr_init(void* args){
 }
 void datamgr_parse_sbuffer(DATAMGR_DATA* datamgr_data, sbuffer_t* buffer){
     sbuffer_table_entry* entry_ptr = NULL; 
-    while(!(*(datamgr_data->terminate_reader_thread)) | (entry_ptr=get_next(buffer,DATA_ENTRY))!= NULL){ //not terminating threads or there are values still in sbuffer 
     
-      
-            if(entry_ptr==NULL){
-
-                while(*(datamgr_data->terminate_reader_thread)==0 &&!(entry_ptr = get_next(buffer, DATA_ENTRY)) ){
+    while(!(*(datamgr_data->terminate_reader_thread)) ){ //not terminating threads or there are values still in sbuffer 
+    
+            entry_ptr = get_next(buffer, DATA_ENTRY) ; 
+       
+                pthread_mutex_lock(&(buffer->sbuffer_edit_mutex)); 
+                while(*(datamgr_data->terminate_reader_thread)==0 && entry_ptr==NULL){
+                    printf("datamgr sleepiing\n"); 
                     pthread_cond_wait(&(buffer->sbuffer_element_added), &(buffer->sbuffer_edit_mutex)); 
+                    entry_ptr = get_next(buffer, DATA_ENTRY) ; 
+                    printf("datamgr woken up \n");
                 }
           
-
-            if(*(datamgr_data->terminate_reader_thread)){// woken up due to termination
-            printf("Datamgr woke up\n"); 
+            
+            if(*(datamgr_data->terminate_reader_thread) && entry_ptr ==NULL){// woken up due to termination
+       
+            printf("Exited datamgr due to termination wakeuyp\n"); 
+            pthread_mutex_unlock(&(buffer->sbuffer_edit_mutex)); 
                 return ; 
             } 
-        }
      
-     
-        pthread_rwlock_rdlock(&(buffer->sbuffer_edit_mutex)); 
-
-        dplist_node_t* current = dpl_get_first_reference(entry_ptr->list); 
+        dplist_node_t* current = entry_ptr->list->head;
         int count =  entry_ptr->tbr_datamgr; 
+         // set iterator to null to have it updated when new insertion is made 
+        buffer->datamgr_iterator = NULL; 
+        pthread_mutex_unlock(&(buffer->sbuffer_edit_mutex)) ;
         for (int i = 0 ; i < count; i++){
-            add_entry(datamgr_data->datamgr_table, current->element); 
+            if(add_entry(datamgr_data->datamgr_table, current->element) ==-1){
+                // write to pipe with conn mgr 
+                sensor_id_t id= ((sensor_data_t*)current->element)->id; 
+                if(write(datamgr_data->pollfd, &id, sizeof(sensor_id_t)) < sizeof(sensor_id_t)){
+                    // log failed to communicate with connmgr 
+                }
+            
+            } 
             current = current->next; 
         }
-        pthread_rwlock_unlock(&(buffer->sbuffer_edit_mutex)) ; 
+        
     //
     
-    /*pthread_rwlock_wrlock(&(buffer->sbuffer_edit_mutex));
-        entry_ptr->tbr_datamgr -= count; 
-    pthread_rwlock_unlock(&(buffer->sbuffer_edit_mutex)) ; */ 
         sbuffer_update_entry(buffer, entry_ptr, DATA_ENTRY, count); 
 
     }
@@ -345,7 +354,8 @@ int datamgr_add_table_entry(void* map, void* args){
         return -1; 
     }
     // Not listening to this sensor
-    return 0; 
+
+    return -1; 
 }
 void datamgr_free_entry(void*entry){
     datamgr_table_entry*  ptr = (datamgr_table_entry*)entry; 

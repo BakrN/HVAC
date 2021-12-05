@@ -56,4 +56,12 @@ char clear_flag;
 char* terminate_thread; 
     void* buffer; 
 }strgmgr_args; 
+ 
+typedef struct {
+    int port_number ; 
+    int pipefd; 
+    void* buffer; 
+    char* terminate_reader_threads;  
+} conn_args; 
+
 #endif /* _CONFIG_H_ */

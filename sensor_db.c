@@ -196,31 +196,41 @@ void* init_strgmgr(void* args){
 int insert_sensor_from_sbuffer(STRGMGR_DATA *strmgr_data, sbuffer_t* buffer){
 
     sbuffer_table_entry* entry_ptr = NULL; 
-    while (!(*(strmgr_data->terminate_reader_thread)) | (entry_ptr =get_next(buffer, STORE_ENTRY))!= NULL) {
-    if(entry_ptr == NULL){
-       
-        while( *(strmgr_data->terminate_reader_thread) == 0 && !(entry_ptr = get_next(buffer, STORE_ENTRY))) {
+    while (!(*(strmgr_data->terminate_reader_thread)) ) {
+        entry_ptr = get_next(buffer, STORE_ENTRY); 
+       pthread_mutex_lock(&(buffer->sbuffer_edit_mutex)); 
+        while( *(strmgr_data->terminate_reader_thread) == 0 && entry_ptr ==NULL){
             // both threads are stuck 
+            printf("strgmgr sleeping\n"); 
             pthread_cond_wait(&(buffer->sbuffer_element_added), &(buffer->sbuffer_edit_mutex)); // puts thread to sleep until another thread broadcasts condition 
+             entry_ptr = get_next(buffer, STORE_ENTRY); 
+                   printf("strgmgr woke up\n"); 
         } 
+  
+ 
+        if(*(strmgr_data->terminate_reader_thread)&& entry_ptr == NULL){// woken up due to termination
 
-        if(*(strmgr_data->terminate_reader_thread)){// woken up due to termination
-        printf("strgmgr woke up\n"); 
+            printf("Exited strgmgr due to termination wakeuyp\n"); 
+            pthread_mutex_unlock(&(buffer->sbuffer_edit_mutex)); 
             return 0; 
         }
-    }
 
-pthread_rwlock_rdlock(&(buffer->sbuffer_edit_mutex)); 
-
-    dplist_node_t* current = dpl_get_first_reference(entry_ptr->list); 
-    int count =  entry_ptr->tbr_datamgr; 
+    
+    dplist_node_t* current = entry_ptr->list->head;
+    int count =  entry_ptr->tbr_strmgr; 
+    // set iterator to null to have it updated when new insertion is made 
+    buffer->strmgr_iterator = NULL; 
+    pthread_mutex_unlock(&(buffer->sbuffer_edit_mutex)); 
     for (int i = 0 ; i < count; i++){
         sensor_data_t* data = (sensor_data_t*)current->element; 
         insert_sensor(strmgr_data, data->id, data->value,data->ts); 
+        #ifdef DEBUG 
+            printf("Inserted data to db: id: %hu, value: %f ts: %ld\n", data->id,data->value, data->ts ); 
+            #endif
         current = current->next; 
 
     }
-    pthread_rwlock_unlock(&(buffer->sbuffer_edit_mutex)) ; 
+
     sbuffer_update_entry(buffer, entry_ptr, STORE_ENTRY, count); 
 
     }

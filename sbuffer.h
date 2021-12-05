@@ -25,7 +25,7 @@ void sbuffer_free_entry(void*entry);
 
 typedef struct{
 hash_table* map; 
-pthread_rwlock_t sbuffer_edit_mutex; 
+pthread_mutex_t sbuffer_edit_mutex; 
 pthread_cond_t sbuffer_element_added; 
 sbuffer_table_entry* strmgr_iterator; // used to get next packet; points to entry of sbuffer
 sbuffer_table_entry* datamgr_iterator; // used to get next packet; points to entry of sbuffer
