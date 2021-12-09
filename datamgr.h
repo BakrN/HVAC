@@ -37,9 +37,11 @@
 
 typedef struct{
   
-    int pollfd; 
+    int pipefd; 
+    int reader_thread_id; 
     hash_table* datamgr_table; 
     char* terminate_reader_thread; 
+
     void* retval ;
 } DATAMGR_DATA; 
 

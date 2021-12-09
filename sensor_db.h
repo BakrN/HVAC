@@ -39,6 +39,7 @@ typedef struct {
   DBCONN* db; 
   char* terminate_reader_thread; 
   void* retval ; 
+  int reader_thread_id; 
 } STRGMGR_DATA; 
 
 void* strgmgr_init(void* args); 

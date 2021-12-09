@@ -13,55 +13,43 @@
  *  \param fp_sensor_data file pointer to the binary data file
  */
 void *datamgr_init(void* args){
-
+    datamgr_args* data_args = (datamgr_args*)args; 
     DATAMGR_DATA* datamgr_data = malloc(sizeof(DATAMGR_DATA));
-    sbuffer_t** s_ptr = (sbuffer_t**)(((char*)args) + sizeof(int) + sizeof(FILE*)); 
-    FILE** f_ptr = (FILE**)(((char*)args) + sizeof(int) ); 
-    int pipefd = *(int*)(args); 
-    FILE* fp_sensor_map = *f_ptr; 
-    sbuffer_t* buffer = *s_ptr; 
-    char** t_ptr = (char**)(((char*)args) + sizeof(int) + sizeof(FILE*)+ sizeof(sbuffer_t*)); 
-    datamgr_data->datamgr_table = create_table(datamgr_free_entry, datamgr_add_table_entry, datamgr_initialize_table, fp_sensor_map);
-    datamgr_data->pollfd = pipefd; 
-    datamgr_data->terminate_reader_thread = *t_ptr; 
-    datamgr_parse_sbuffer(datamgr_data, buffer); 
+
+    datamgr_data->datamgr_table = create_table(datamgr_free_entry, datamgr_add_table_entry, datamgr_initialize_table, data_args->fp_sensor_map);
+    datamgr_data->pipefd = data_args->pipefd; 
+    datamgr_data->terminate_reader_thread = data_args->terminate_thread; 
+    datamgr_data->reader_thread_id  = data_args->reader_thread_id; 
+    sbuffer_reader_subscribe(data_args->buffer,datamgr_data->reader_thread_id ); 
+    datamgr_parse_sbuffer(datamgr_data, data_args->buffer); 
     printf("RETURNED FROM PARSING SBUFFER\n"); 
     datamgr_free(datamgr_data); 
     return NULL; 
 }
 void datamgr_parse_sbuffer(DATAMGR_DATA* datamgr_data, sbuffer_t* buffer){
-    sbuffer_table_entry* entry_ptr = NULL; 
     
-    while(!(*(datamgr_data->terminate_reader_thread)) ){ //not terminating threads or there are values still in sbuffer 
     
-            entry_ptr = get_next(buffer, DATA_ENTRY) ; 
-       
-                pthread_mutex_lock(&(buffer->sbuffer_edit_mutex)); 
-                while(*(datamgr_data->terminate_reader_thread)==0 && entry_ptr==NULL){
-                    printf("datamgr sleepiing\n"); 
-                    pthread_cond_wait(&(buffer->sbuffer_element_added), &(buffer->sbuffer_edit_mutex)); 
-                    entry_ptr = get_next(buffer, DATA_ENTRY) ; 
-                    printf("datamgr woken up \n");
-                }
-          
-            
-            if(*(datamgr_data->terminate_reader_thread) && entry_ptr ==NULL){// woken up due to termination
-       
-            printf("Exited datamgr due to termination wakeuyp\n"); 
-            pthread_mutex_unlock(&(buffer->sbuffer_edit_mutex)); 
-                return ; 
-            } 
-     
+    while(!(*(buffer->terminate_reader_threads)) ){ //not terminating threads or there are values still in sbuffer 
+    printf("datamgr sleepiing\n");
+        if(sbuffer_wait_for_data(buffer, datamgr_data->reader_thread_id)){
+            // terminate 
+            printf("DATAMGR_TERMINATED\n"); 
+            return ; 
+        }; 
+    printf("datamgr woken up \n");
+        sbuffer_table_entry* entry_ptr = get_next(buffer, datamgr_data->reader_thread_id);
         dplist_node_t* current = entry_ptr->list->head;
-        int count =  entry_ptr->tbr_datamgr; 
-         // set iterator to null to have it updated when new insertion is made 
-        buffer->datamgr_iterator = NULL; 
-        pthread_mutex_unlock(&(buffer->sbuffer_edit_mutex)) ;
+
+        int count = sbuffer_get_entry_tbr(buffer, entry_ptr, datamgr_data->reader_thread_id); // error if -1 
+        if(count ==-1 ){// 
+        printf("ERROR COULDN't find tbr of datamgr reader thread\n") ; 
+        }
+
         for (int i = 0 ; i < count; i++){
-            if(add_entry(datamgr_data->datamgr_table, current->element) ==-1){
+            if(add_entry(datamgr_data->datamgr_table, current->element) ==-1){  // insert copy of data into datamgr 
                 // write to pipe with conn mgr 
                 sensor_id_t id= ((sensor_data_t*)current->element)->id; 
-                if(write(datamgr_data->pollfd, &id, sizeof(sensor_id_t)) < sizeof(sensor_id_t)){
+                if(write(datamgr_data->pipefd, &id, sizeof(sensor_id_t)) < sizeof(sensor_id_t)){
                     // log failed to communicate with connmgr 
                 }
             
@@ -71,7 +59,7 @@ void datamgr_parse_sbuffer(DATAMGR_DATA* datamgr_data, sbuffer_t* buffer){
         
     //
     
-        sbuffer_update_entry(buffer, entry_ptr, DATA_ENTRY, count); 
+        sbuffer_update_entry(buffer, entry_ptr, datamgr_data->reader_thread_id, count); 
 
     }
     //terminated 
@@ -109,7 +97,7 @@ void datamgr_parse_sbuffer(DATAMGR_DATA* datamgr_data, sbuffer_t* buffer){
 void datamgr_free(DATAMGR_DATA* datamgr_data){
     destroy_table(datamgr_data->datamgr_table); 
 
-    close(datamgr_data->pollfd ); 
+    close(datamgr_data->pipefd ); 
 
     free(datamgr_data); 
 
@@ -165,17 +153,22 @@ int datamgr_get_total_sensors(DATAMGR_DATA* datamgr_data){
  * */ 
 void datamgr_element_free(void ** element)
 {
-    datamgr_element* data = *element; 
-    free(data->data); 
+    sensor_data_t* data = *element; 
     free(data); 
+
     data = NULL ;
 }
 void* datamgr_element_copy(void * element)
 {
-    return NULL; 
+    sensor_data_t* data = malloc(sizeof(sensor_data_t));
+    data->id = ((sensor_data_t*)element)->id; 
+    data->ts = ((sensor_data_t*)element)->ts; 
+    data->value = ((sensor_data_t*)element)->value; 
+    return data; 
 }
 int datamgr_element_compare(void * x, void* y)
 {
+
     return 0; 
 }
 
@@ -205,13 +198,9 @@ void datamgr_initialize_table(void* map, void* file){
             ptr = (datamgr_table_entry*)malloc(sizeof(datamgr_table_entry)); 
             ptr->list = dpl_create(datamgr_element_copy,datamgr_element_free,datamgr_element_compare ); 
             ptr->key = sensor_id; 
-            ptr->current_average = 0 ;
+            ptr->current_average = -273.0 ; // initial value
             ptr->room_id = room_id; 
-            ptr->running_value_index = 0; 
-            ptr->running_average = malloc(sizeof(double)* 5); 
-            for(int i = 0; i < 5; i++){
-                ptr->running_average[i] = -273; 
-            }
+         
             entries[index] = (long)ptr; 
             continue; 
        }
@@ -234,13 +223,9 @@ void datamgr_initialize_table(void* map, void* file){
             ptr = (datamgr_table_entry*)malloc(sizeof(datamgr_table_entry)); 
             ptr->list = dpl_create(datamgr_element_copy,datamgr_element_free,datamgr_element_compare ); 
             ptr->key = sensor_id; 
-            ptr->current_average = 0 ;
+            ptr->current_average = -273.0 ; // initial value is -273
             ptr->room_id = room_id; 
-            ptr->running_value_index = 0; 
-            ptr->running_average = malloc(sizeof(double)* 5); 
-            for(int i = 0; i < 5; i++){
-                ptr->running_average[i] = -273; 
-            }
+      
             entries[index] = (long)ptr; 
    }
 
@@ -272,28 +257,28 @@ int datamgr_add_table_entry(void* map, void* args){
     {
         datamgr_table_entry* entry = (datamgr_table_entry*)(get_entry_by_index((hash_table*)map, index)); 
         if(entry->key == data->id){
-            if(entry->current_average == 0 && entry->running_value_index == 0){
+            if(entry->current_average == -273 ){
                 ((hash_table*)map)->count++; 
+                entry->current_average = 0; 
             }
 
                      // Don't need mutex if only adding to index 0, just make sure you aren't checking prev
-            datamgr_element* element = malloc(sizeof(datamgr_element)); 
-            element->data =data; 
-            entry->running_average[entry->running_value_index] = data->value; 
-            entry->running_value_index = (entry->running_value_index + 1) % 5; 
-            //-273 means not assigned yet
-            int count = 0; 
-            while(count != 5){
-                if(entry->running_average[count] == -273){
-                    break; 
-                }
-                count++; 
+            
+            int list_size = dpl_size(entry->list); 
+            if(list_size == 5){
+                dpl_remove_at_index(entry->list, 4, 1); 
             }
-            for (int i = 0; i <= count; i++){
-                element->current_average += entry->running_average[i]; 
+            dpl_insert_at_index(entry->list,data, 0 ,1); // copied 
+            entry->current_average += (entry->current_average)/list_size; 
+            if(entry->current_average > SET_MAX_TEMP){
+                fprintf(stderr, "Sensor %hu Exceeded max temp\n", data->id); 
+                fflush(stderr); 
             }
-            element->current_average = element->current_average/(count+1); 
-            dpl_insert_at_index(entry->list,element, 0 ,0); // not copied 
+            if(entry->current_average < SET_MIN_TEMP){
+                fprintf(stderr, "Sensor %hu went below min temp\n", data->id); 
+                fflush(stderr); 
+            }
+            
             return 0; // success 
         }
         uint32_t search = index+1; 
@@ -311,34 +296,24 @@ int datamgr_add_table_entry(void* map, void* args){
             // check if sensor id already exists
             else if (entry->key == data->id){
                 
-            if(entry->current_average == 0 && entry->running_value_index == 0){
+            if(entry->current_average == -273.0 ){
                 ((hash_table*)map)->count++; 
+                entry->current_average = 0; 
             }
-            datamgr_element* element = malloc(sizeof(datamgr_element)); 
-            element->data =data; 
-            entry->running_average[entry->running_value_index] = data->value; 
-            entry->running_value_index = (entry->running_value_index + 1) % 5; 
-            //-273 means not assigned yet
-            int count = 0; 
-            while(count != 5){
-                if(entry->running_average[count] == -273.0){
-                    break; 
-                }
-                count++; 
+                int list_size = dpl_size(entry->list); 
+            if(list_size == 5){
+                dpl_remove_at_index(entry->list, 4, 1); 
             }
-            for (int i = 0; i <= count; i++){
-                element->current_average += entry->running_average[i]; 
-            }
-            element->current_average = element->current_average/(count+1); 
-            if(element->current_average > SET_MAX_TEMP){
-                fprintf(stderr, "Sensor %hu Exceeded max temp\n", element->data->id); 
+            dpl_insert_at_index(entry->list,data, 0 ,1); // copied 
+            entry->current_average += (entry->current_average)/list_size; 
+            if(entry->current_average > SET_MAX_TEMP){
+                fprintf(stderr, "Sensor %hu Exceeded max temp\n", data->id); 
                 fflush(stderr); 
             }
-            if(element->current_average < SET_MIN_TEMP){
-                fprintf(stderr, "Sensor %hu went below min temp\n", element->data->id); 
+            if(entry->current_average < SET_MIN_TEMP){
+                fprintf(stderr, "Sensor %hu went below min temp\n", data->id); 
                 fflush(stderr); 
             }
-            dpl_insert_at_index(entry->list,element, 0 ,0); // not copied 
             return 0; // success 
         
           
@@ -360,8 +335,8 @@ int datamgr_add_table_entry(void* map, void* args){
 void datamgr_free_entry(void*entry){
     datamgr_table_entry*  ptr = (datamgr_table_entry*)entry; 
     dpl_free(&ptr->list, 1); 
-    free(ptr->running_average); 
+
     ptr->list = NULL ;
-    ptr->running_average = NULL; 
+   
     free(ptr); 
 }

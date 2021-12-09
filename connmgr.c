@@ -59,7 +59,6 @@ void* connmgr_init(void *args)
     connmgr_data->socket_list = dpl_create(&tcp_element_copy, &tcp_element_free, &tcp_element_compare);
 
     connmgr_data->buffer = (sbuffer_t*) c_args->buffer; // long is same size as sbuffer_t*
-    connmgr_data->terminate_reader_threads = c_args->terminate_reader_threads; 
     //./sensor_test 101 15 127.0.0.1 1234
     
     connmgr_listen_to_port(c_args->port_number, connmgr_data);
@@ -93,7 +92,7 @@ void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
     tcp_element *temp = malloc(sizeof(tcp_element));
     temp->socket = malloc(sizeof(tcpsock_t));
 
-    while (poll(connmgr_data->pollfds, conn_count + 2, 10000) > 0)
+    while (poll(connmgr_data->pollfds, conn_count + 2, 20000) > 0)
     { // revents are cleared by poll function
     #ifdef DEBUG
         printf("Current clients count: %d \n", conn_count);
@@ -151,6 +150,9 @@ void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
                 // drop sensors from here
 
                 temp->sensor_id = id_to_be_dropped;
+                #ifdef DEBUG 
+                printf("SENSOR WAS DROPPED BECAUSE OF ID %d\n", id_to_be_dropped); 
+                #endif
                 dplist_node_t *node = dpl_get_reference_of_element(connmgr_data->socket_list, temp);
                 for (int i = 2; i < conn_count + 2; i++)
                 {
@@ -299,10 +301,10 @@ void connmgr_destroy(CONNMGR_DATA* connmgr_data)
     log_event(connmgr_data->CONN_GATEWAY_FD, connmgr_data->CONN_LOG_MSG);
     free(connmgr_data->CONN_LOG_MSG->message);
     free(connmgr_data->CONN_LOG_MSG);
-    *(connmgr_data->terminate_reader_threads) = 1; 
-    pthread_mutex_lock(&(connmgr_data->buffer->sbuffer_edit_mutex)); 
-    pthread_cond_broadcast(&(connmgr_data->buffer->sbuffer_element_added )); // wake up other threads if they're asleep 
-    pthread_mutex_unlock(&(connmgr_data->buffer->sbuffer_edit_mutex)); 
+    *(connmgr_data->buffer->terminate_reader_threads) =1; 
+   
+    sbuffer_wakeup_readerthreads(connmgr_data->buffer); 
+    
     free(connmgr_data); 
     // else log successfully destroyed connmgr
 }

@@ -23,7 +23,7 @@ typedef enum {
 
 typedef struct {
     sensor_data_t* data; 
-    double current_average; 
+     
 } datamgr_element; 
 
 
@@ -32,19 +32,20 @@ typedef struct{
     uint32_t key; // sensor id; 
 
     uint16_t room_id; 
-    uint8_t running_value_index; 
-    double* running_average;
     double current_average; 
     dplist_t* list;     
 
 }datamgr_table_entry; 
-
-
 typedef struct {
+    int thread_id; 
+    uint16_t tbr_count; 
+}sbuffer_entry_toberead; // to be read count ; 
+typedef struct {
+
     uint32_t key; // sensor id  
     dplist_t* list; // pointers to sensor_data_t
-    uint32_t tbr_datamgr; 
-    uint32_t tbr_strmgr; 
+    sbuffer_entry_toberead** to_be_read; 
+  
 } sbuffer_table_entry; 
 typedef struct {
     uint32_t sequence_number; 
@@ -52,16 +53,24 @@ typedef struct {
     char* message; 
 } log_msg; 
 typedef struct {
-char clear_flag; 
-char* terminate_thread; 
+    char clear_flag; 
+    char* terminate_thread; 
     void* buffer; 
+    int reader_thread_id; 
 }strgmgr_args; 
- 
+typedef struct {
+    int pipefd; 
+    void* fp_sensor_map;
+    void* buffer; 
+    char* terminate_thread; 
+    int reader_thread_id; 
+}datamgr_args; 
+
 typedef struct {
     int port_number ; 
     int pipefd; 
     void* buffer; 
-    char* terminate_reader_threads;  
+
 } conn_args; 
 
 #endif /* _CONFIG_H_ */

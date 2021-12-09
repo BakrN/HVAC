@@ -15,24 +15,37 @@
 
 /*hash table implemenetation*/ 
 
-void sbuffer_element_free(void ** element); 
+void sbuffer_listelement_free(void ** element); 
 
 int sbuffer_add_table_entry(void* map, void* arg); 
 void sbuffer_free_entry(void*entry); 
 
 //###############################################
 
-
 typedef struct{
-hash_table* map; 
-pthread_mutex_t sbuffer_edit_mutex; 
-pthread_cond_t sbuffer_element_added; 
-sbuffer_table_entry* strmgr_iterator; // used to get next packet; points to entry of sbuffer
-sbuffer_table_entry* datamgr_iterator; // used to get next packet; points to entry of sbuffer
+    
+    sbuffer_table_entry* entry; 
+    int thread_id; // unique to each thread assigned by main program ; 
+
+}sbuffer_iterator; 
+typedef struct{
+    hash_table* map; 
+    pthread_mutex_t sbuffer_edit_mutex; 
+    pthread_cond_t sbuffer_element_added; 
+    sbuffer_iterator** iterators; // Each reader thread will have an id with indices; 
+    uint8_t reader_thread_count;
+    char* terminate_reader_threads; 
 } sbuffer_t; 
 
 
-sbuffer_table_entry* get_next(sbuffer_t* buffer, ENTRY_TYPE type); 
+sbuffer_table_entry* get_next(sbuffer_t* buffer, int thread_id); 
+
+void sbuffer_reader_subscribe(sbuffer_t* buffer, int thread_id); 
+
+void sbuffer_reader_unsubscribe(sbuffer_t* buffer, int thread_id); 
+
+char sbuffer_wait_for_data(sbuffer_t* buffer, int thread_id); //return 0 if there is data // returns 1 if terminate reader threads 
+
 
 /**
  * Allocates and initializes a new shared buffer
@@ -65,6 +78,9 @@ int sbuffer_remove(sbuffer_t *buffer, sensor_data_t *data);
 */
 int sbuffer_insert(sbuffer_t *buffer, sensor_data_t *data);
 
-void sbuffer_update_entry(sbuffer_t* buffer, sbuffer_table_entry* entry, ENTRY_TYPE type , int count); // 
+int sbuffer_get_entry_tbr(sbuffer_t* buffer, sbuffer_table_entry* entry, int thread_id); 
 
+void sbuffer_update_entry(sbuffer_t * buffer, sbuffer_table_entry * entry, int thread_id, int count) ; // 
+
+void sbuffer_wakeup_readerthreads(sbuffer_t* buffer); 
 #endif  //_SBUFFER_H_

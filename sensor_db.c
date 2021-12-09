@@ -50,6 +50,8 @@ void* strgmgr_init(void* args){
     strgmgr_args* ptr = (strgmgr_args*)args; 
     STRGMGR_DATA* strgmgr_data = strmgr_init_connection(ptr->clear_flag); 
     strgmgr_data->terminate_reader_thread = ptr->terminate_thread; 
+    strgmgr_data->reader_thread_id = ptr->reader_thread_id; 
+    sbuffer_reader_subscribe(ptr->buffer, strgmgr_data->reader_thread_id); 
     // while loop
     insert_sensor_from_sbuffer(strgmgr_data, ptr->buffer);  
     // 
@@ -196,31 +198,22 @@ void* init_strgmgr(void* args){
 int insert_sensor_from_sbuffer(STRGMGR_DATA *strmgr_data, sbuffer_t* buffer){
 
     sbuffer_table_entry* entry_ptr = NULL; 
-    while (!(*(strmgr_data->terminate_reader_thread)) ) {
-        entry_ptr = get_next(buffer, STORE_ENTRY); 
-       pthread_mutex_lock(&(buffer->sbuffer_edit_mutex)); 
-        while( *(strmgr_data->terminate_reader_thread) == 0 && entry_ptr ==NULL){
-            // both threads are stuck 
-            printf("strgmgr sleeping\n"); 
-            pthread_cond_wait(&(buffer->sbuffer_element_added), &(buffer->sbuffer_edit_mutex)); // puts thread to sleep until another thread broadcasts condition 
-             entry_ptr = get_next(buffer, STORE_ENTRY); 
-                   printf("strgmgr woke up\n"); 
-        } 
-  
- 
-        if(*(strmgr_data->terminate_reader_thread)&& entry_ptr == NULL){// woken up due to termination
+    while (!(*(buffer->terminate_reader_threads)) ) {
+       
+        printf("strgmr sleeping\n"); 
+        if(sbuffer_wait_for_data(buffer, strmgr_data->reader_thread_id)){
+            // terminate 
+            printf("strgmgr_TERMINATED\n"); 
+            return ; 
+        }; 
+        printf("strgmgr woken up\n"); 
+        sbuffer_table_entry* entry_ptr = get_next(buffer, strmgr_data->reader_thread_id);
+        dplist_node_t* current = entry_ptr->list->head;
 
-            printf("Exited strgmgr due to termination wakeuyp\n"); 
-            pthread_mutex_unlock(&(buffer->sbuffer_edit_mutex)); 
-            return 0; 
+        int count = sbuffer_get_entry_tbr(buffer, entry_ptr, strmgr_data->reader_thread_id); // error if -1 
+        if(count ==-1 ){// 
+        printf("ERROR COULDN't find tbr of datamgr reader thread\n") ; 
         }
-
-    
-    dplist_node_t* current = entry_ptr->list->head;
-    int count =  entry_ptr->tbr_strmgr; 
-    // set iterator to null to have it updated when new insertion is made 
-    buffer->strmgr_iterator = NULL; 
-    pthread_mutex_unlock(&(buffer->sbuffer_edit_mutex)); 
     for (int i = 0 ; i < count; i++){
         sensor_data_t* data = (sensor_data_t*)current->element; 
         insert_sensor(strmgr_data, data->id, data->value,data->ts); 
@@ -231,7 +224,7 @@ int insert_sensor_from_sbuffer(STRGMGR_DATA *strmgr_data, sbuffer_t* buffer){
 
     }
 
-    sbuffer_update_entry(buffer, entry_ptr, STORE_ENTRY, count); 
+    sbuffer_update_entry(buffer, entry_ptr, strmgr_data->reader_thread_id, count); 
 
     }
 
