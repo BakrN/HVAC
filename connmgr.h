@@ -7,15 +7,14 @@
 
 #include <pthread.h>
 #ifndef TIMEOUT
-#define TIMEOUT 6 // IN SECONDS
+#define TIMEOUT 20 // IN SECONDS
 #endif
-#define PORT 1234
 // list of sensors with last timestamp
 // list of client tcp sockets to store data in (might be better to auto write to sbuffer once data is received )
 typedef struct
 {
     tcpsock_t *socket;
-    uint16_t sensor_id;
+    int sensor_id;
     time_t last_timestamp;
 } tcp_element;
 typedef struct {

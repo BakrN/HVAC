@@ -78,7 +78,7 @@ void log_event(int write_fd, log_msg* event){
     asprintf(&test_message, "%lu %ld: %s\n", event->sequence_number, event->timestamp, event->message) ; 
 
     write(log_fd, test_message, strlen(test_message)); 
-  
+    //fprintf(log_file, "%s\n", test_message); 
     free(test_message); 
 }
 
@@ -88,5 +88,6 @@ void log_destroy(){
     close(log_fd); 
     exit(1); 
 }
+
 
 

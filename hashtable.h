@@ -26,16 +26,16 @@ typedef struct {
 } hash_table;  
 
 // Core functions
-hash_table* create_table(void (*free_entry)(void* entry),
+hash_table* umap_create(void (*free_entry)(void* entry),
     int (*add_table_entry)(void* map, void* data), // 0 for success , -1 otherwise 
     void (*initialize_table)(void* map, void*arg), void* arg) ; 
-void destroy_table(hash_table* map);
+void umap_destroy(hash_table* map);
 uint32_t hash_key(uint32_t id); // FNV_PRIME
-int add_entry(hash_table*map, void* data); 
-void* get_entry_by_index(hash_table* map, uint32_t index); 
+int umap_addentry(hash_table*map, void* data); 
+void* umap_get_entry_by_index(hash_table* map, uint32_t index); 
 void* get_entry_by_key(hash_table* map, uint32_t key); // this assumes no collision. implement later with collision assumption
 // Idea is a hash table with circular queues linked lists for each sensor id. then the different threads can work access different sensors. 
 
-
+void umap_expand(); 
 
 

@@ -28,7 +28,7 @@ int main(int argc, char* argv[]){
         //log faile dto open connection between connmgr and datamgr; 
     }
     
-    int reader_thread_ids[2]= {0,1}; 
+    int reader_thread_ids[2]; 
     sbuffer_t* buffer1;
     sbuffer_init(&buffer1); 
     //connmgr_args
@@ -46,13 +46,13 @@ int main(int argc, char* argv[]){
     data_args->fp_sensor_map = fp_sensor_map; 
     data_args->buffer = buffer1; 
 
-    data_args->reader_thread_id = reader_thread_ids[0];
+    data_args->reader_thread_id = 0;
     // strgmgr_args 
     strgmgr_args* db_args = malloc(sizeof(strgmgr_args)) ; 
     
     db_args->buffer = (void*)buffer1; 
     db_args->clear_flag = 1; 
-    db_args->reader_thread_id = reader_thread_ids[1];
+    db_args->reader_thread_id = 1; 
     pthread_create(&(working_threads[0]), NULL, strgmgr_init, db_args); 
 
 
@@ -61,9 +61,9 @@ int main(int argc, char* argv[]){
 
     void* retvals [3]; 
     
-    pthread_join(working_threads[0], &retvals[0]); 
-    pthread_join(working_threads[1], &retvals[1]); 
-    pthread_join(working_threads[2], &retvals[2]); 
+    for (int i = 0; i <3 ; i++){
+        pthread_join(working_threads[i], &retvals[i]); 
+    }
     printf("JOINED THREADS\n"); 
     free(connmgr_args); 
     free(data_args); 

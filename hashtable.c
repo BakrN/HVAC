@@ -2,7 +2,7 @@
 
 
 
-hash_table* create_table(void (*free_entry)(void* entry),
+hash_table* umap_create(void (*free_entry)(void* entry),
     int (*add_table_entry)(void* map, void* data), // 0 for success , -1 otherwise 
     void (*initialize_table)(void* map, void*arg), void* arg){
 
@@ -40,12 +40,12 @@ hash_table* create_table(void (*free_entry)(void* entry),
 
     return mp; 
 }
-void* get_entry_by_index(hash_table* map, uint32_t index){
+void* umap_get_entry_by_index(hash_table* map, uint32_t index){
 
     long* entries =  (long*)map->entries; 
     return (void*)entries[index]; 
 }
-void destroy_table(hash_table* map){
+void umap_destroy(hash_table* map){
 
     long* entries =  (long*) map->entries; 
     for(int i = 0; i < map->capacity; i++){
@@ -67,8 +67,8 @@ void* get_entry_by_key(hash_table* map, uint32_t key){
     long* ptr = (long*) map->entries; 
     return (void*)ptr[hash_key(key)] ; 
 }
-int add_entry(hash_table*map, void* data){
-
+int umap_addentry(hash_table*map, void* data){
+    
     return map->add_table_entry((void*)map, data) ; 
 }
 uint32_t hash_key(uint32_t id){

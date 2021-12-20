@@ -45,7 +45,7 @@ typedef struct {
     uint32_t key; // sensor id  
     dplist_t* list; // pointers to sensor_data_t
     sbuffer_entry_toberead** to_be_read; 
-  
+    int tbr_array_size; 
 } sbuffer_table_entry; 
 typedef struct {
     uint32_t sequence_number; 

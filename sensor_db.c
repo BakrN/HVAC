@@ -51,6 +51,8 @@ void* strgmgr_init(void* args){
     STRGMGR_DATA* strgmgr_data = strmgr_init_connection(ptr->clear_flag); 
     strgmgr_data->terminate_reader_thread = ptr->terminate_thread; 
     strgmgr_data->reader_thread_id = ptr->reader_thread_id; 
+    
+    printf("reader thread id of strgmgr: %d\n", strgmgr_data->reader_thread_id);
     sbuffer_reader_subscribe(ptr->buffer, strgmgr_data->reader_thread_id); 
     // while loop
     insert_sensor_from_sbuffer(strgmgr_data, ptr->buffer);  
@@ -198,6 +200,7 @@ void* init_strgmgr(void* args){
 int insert_sensor_from_sbuffer(STRGMGR_DATA *strmgr_data, sbuffer_t* buffer){
 
     sbuffer_table_entry* entry_ptr = NULL; 
+     int count = 0; 
     while (!(*(buffer->terminate_reader_threads)) ) {
        
         printf("strgmr sleeping\n"); 
@@ -210,18 +213,15 @@ int insert_sensor_from_sbuffer(STRGMGR_DATA *strmgr_data, sbuffer_t* buffer){
         sbuffer_table_entry* entry_ptr = get_next(buffer, strmgr_data->reader_thread_id);
         dplist_node_t* current = entry_ptr->list->head;
 
-        int count = sbuffer_get_entry_tbr(buffer, entry_ptr, strmgr_data->reader_thread_id); // error if -1 
-        if(count ==-1 ){// 
-        printf("ERROR COULDN't find tbr of datamgr reader thread\n") ; 
-        }
-    for (int i = 0 ; i < count; i++){
+       count = 0; 
+        while(current){
         sensor_data_t* data = (sensor_data_t*)current->element; 
         insert_sensor(strmgr_data, data->id, data->value,data->ts); 
         #ifdef DEBUG 
             printf("Inserted data to db: id: %hu, value: %f ts: %ld\n", data->id,data->value, data->ts ); 
             #endif
         current = current->next; 
-
+        count ++; 
     }
 
     sbuffer_update_entry(buffer, entry_ptr, strmgr_data->reader_thread_id, count); 

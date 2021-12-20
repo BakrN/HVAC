@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include "config.h"
 #include "lib/tcpsock.h"
+#define SENSOR_COUNT 200
 #define LOOPS 20
 // conditional compilation option to control the number of measurements this sensor node wil generate
 #if (LOOPS > 1)
@@ -64,51 +65,50 @@ void print_help(void);
  */
 
 int main(int argc, char *argv[]) {
-    sensor_data_t data;
-    int server_port;
-    char server_ip[] = "000.000.000.000";
-    tcpsock_t *client;
+    sensor_data_t data[SENSOR_COUNT];
+    int server_port = 1234;
+    char server_ip[] = "127.0.0.1";
+    tcpsock_t *client[SENSOR_COUNT];
     int i, bytes, sleep_time;
+    sleep_time = 1; 
     int initial_temp; 
     LOG_OPEN();
 
-    if (argc != 6) {
-        print_help();
-        exit(EXIT_SUCCESS);
-    } else {
-        // to do: user input validation!
-        data.id = atoi(argv[1]);
-        sleep_time = atoi(argv[2]);
-        strncpy(server_ip, argv[3], strlen(server_ip));
-        server_port = atoi(argv[4]);
-        initial_temp = atoi(argv[5]); 
-    }
+ 
+ 
 
     srand48(time(NULL));
 
     // open TCP connection to the server; server is listening to SERVER_IP and PORT
-    if (tcp_active_open(&client, server_port, server_ip) != TCP_NO_ERROR) exit(EXIT_FAILURE);
-    data.value = initial_temp;
+    for(int j = 0 ; j < SENSOR_COUNT; j++) {if (j == 31) continue; if(tcp_active_open(&client[j], server_port, server_ip)!=TCP_NO_ERROR) exit(EXIT_FAILURE) ;}
+
     i = LOOPS;
     while (i) {
-        data.value = data.value + TEMP_DEV * ((drand48() - 0.5) / 10);
-        time(&data.ts);
+        for (int j= 0 ; j < SENSOR_COUNT ; j++){
+          if (j == 31) continue; 
+        data[j].value = data[j].value + TEMP_DEV * ((drand48() - 0.5) / 10);
+        time(&data[j].ts);
         // send data to server in this order (!!): <sensor_id><temperature><timestamp>
         // remark: don't send as a struct!
-        bytes = sizeof(data.id);
-        if (tcp_send(client, (void *) &data.id, &bytes) != TCP_NO_ERROR) exit(EXIT_FAILURE);
-        bytes = sizeof(data.value);
-        if (tcp_send(client, (void *) &data.value, &bytes) != TCP_NO_ERROR) exit(EXIT_FAILURE);
-        bytes = sizeof(data.ts);
-        if (tcp_send(client, (void *) &data.ts, &bytes) != TCP_NO_ERROR) exit(EXIT_FAILURE);
-        LOG_PRINTF(data.id, data.value, data.ts);
+        data[j].id = j; 
+        bytes = sizeof(data[j].id);
+        if (tcp_send(client[j], (void *) &data[j].id, &bytes) != TCP_NO_ERROR) ;
+        bytes = sizeof(data[j].value);
+        if (tcp_send(client[j], (void *) &data[j].value, &bytes) != TCP_NO_ERROR) ;
+        bytes = sizeof(data[j].ts);
+        if (tcp_send(client[j], (void *) &data[j].ts, &bytes) != TCP_NO_ERROR);
+        LOG_PRINTF(data[j].id, data[j].value, data[j].ts);
+       
+    }
         sleep(sleep_time);
         UPDATE(i);
+    
     }
 
-    if (tcp_close(&client) != TCP_NO_ERROR){ exit(EXIT_FAILURE);}
+    for (int j = 0 ; j < SENSOR_COUNT; j++) {if(j==31) continue;  if (tcp_close(&client[j]) != TCP_NO_ERROR) ;}
 
     LOG_CLOSE();
+
 printf("Success CLOSING CLINET\n");
     exit(EXIT_SUCCESS);
 }

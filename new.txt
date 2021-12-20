@@ -7,22 +7,20 @@
 #include <poll.h>
 #include <malloc.h> 
 
-//
-
-// NOTE SHOULD PROBABLY KEEP TRACK OF SENSOR IDS SO THAT IF THEY TRY TO CONNECT AGAIN I REFUSE THEM 
 
 
 int tcp_element_compare(void *x, void *y)
 {
-    int b= ((tcp_element *)x)->socket->sd; 
 
-    int g = ((tcp_element *)y)->socket->sd; // this one
-    
     if (((tcp_element *)x)->socket->sd == ((tcp_element *)y)->socket->sd)
     {
         return 0;
     }
 
+    else if (((tcp_element *)x)->sensor_id == ((tcp_element *)y)->sensor_id)
+    {
+        return 0;
+    }
     return -1;
 }
 void tcp_element_free(void **element)
@@ -64,12 +62,15 @@ void* connmgr_init(void *args)
     connmgr_destroy(connmgr_data); 
     return NULL; 
 }
+
+
 void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
 {
     if (port_number < MIN_PORT || port_number > MAX_PORT)
     {
         // log invalid port
         
+        printf("Port no. failure \n"); 
         return;
     }
 
@@ -79,6 +80,7 @@ void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
     if (tcp_passive_open(&connmgr_data->server, port_number) != TCP_NO_ERROR)
     {
         // log failed to setup connmgr_data->server and exit 
+        printf("Failed to open server \n"); 
         return ; 
     }
     int conn_count = 0;
@@ -98,7 +100,7 @@ void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
     #endif
         if (connmgr_data->pollfds[0].revents & POLLIN)
         {
-            tcp_element *entry = malloc(sizeof(tcp_element));// leak somehow
+            tcp_element *entry = malloc(sizeof(tcp_element));
             entry->socket = NULL; 
             if (tcp_wait_for_connection(connmgr_data->server, &entry->socket) == TCP_NO_ERROR)
             {
@@ -115,7 +117,7 @@ void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
               
                 entry->sensor_id = -1;
                 entry->last_timestamp = time(NULL);
-                connmgr_data->socket_list = dpl_insert_at_index(connmgr_data->socket_list, entry, 0, 0);
+                connmgr_data->socket_list = dpl_insert_at_index(connmgr_data->socket_list, (void*)entry, 0, 0);
             
                 connmgr_data->pollfds = realloc(connmgr_data->pollfds, (2 + conn_count) * sizeof(struct pollfd));
 
@@ -147,35 +149,35 @@ void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
             {
                 // drop sensors from here
 
-                
+                temp->sensor_id = id_to_be_dropped;
                 #ifdef DEBUG 
                 printf("SENSOR WAS DROPPED BECAUSE OF ID %u\n", id_to_be_dropped); 
                 #endif
-        
-                dplist_node_t* node = connmgr_data->socket_list->head; 
-                while(node != NULL){
-                    if(((tcp_element*)(node->element))->sensor_id == id_to_be_dropped ){
-                        break; 
-                    }
-                    node = node->next;
-     
+                dplist_node_t *node = dpl_get_reference_of_element(connmgr_data->socket_list, temp); // error here
+                if(!node){
+                     printf("SENSOR with ID %d should be dropped but doesn't exist in list \n", id_to_be_dropped); 
+                    continue;
                 }
-
-                
-                  int i = 2; 
-                  for ( ; i < conn_count+2; i++ ){
-                    if (((tcp_element*)(node->element))->socket->sd == connmgr_data->pollfds[i].fd){
-                        break; 
-                    }
-                  }
-                  connmgr_data->socket_list = dpl_remove_at_reference(connmgr_data->socket_list, node, 1);
-                    for (int j = i; j < conn_count+1; j++)
+                for (int i = 2; i < conn_count + 2; i++)
+                {
+                    if (connmgr_data->pollfds[i].fd == ((tcp_element *)(node->element))->socket->sd)
                     {
-                        connmgr_data->pollfds[j] = connmgr_data->pollfds[j + 1];
+
+                    
+                        connmgr_data->socket_list = dpl_remove_at_reference(connmgr_data->socket_list, node, 1);
+                      
+                        for (int j = i; j < conn_count + 1; j++)
+                        {
+                            connmgr_data->pollfds[i] = connmgr_data->pollfds[i + 1];
+                        }
+                        conn_count--;
+                       
+                        connmgr_data->pollfds = realloc(connmgr_data->pollfds, sizeof(struct pollfd) * (2 + conn_count));
+                     
+                        break;
                     }
-                    conn_count--;
-                   
-                    connmgr_data->pollfds = realloc(connmgr_data->pollfds, sizeof(struct pollfd) * (2 + conn_count));
+                    //; node = node->next ;
+                }
                 
             }
             // send message to db to delete stuff with sensor id 
@@ -186,17 +188,20 @@ void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
         for (int i = 2; i < conn_count + 2; i++)
         {
 
-           
+         
             temp->socket->sd = connmgr_data->pollfds[i].fd;
+            
             dplist_node_t *node = dpl_get_reference_of_element(connmgr_data->socket_list, temp);
-            if (!node || !node->element){
-                printf("SEGMENTATION FAULT AT: %d\n", connmgr_data->pollfds[i].fd) ; 
+            if(!node || !node->element){
+                #ifdef DEBUG
+                printf("element is null Client Node with socket no. %d\n", connmgr_data->pollfds[i].fd); 
+                #endif
             }
-            if((time(NULL) - ((tcp_element*)(node->element))->last_timestamp) >= TIMEOUT ||connmgr_data->pollfds[i].revents & POLLHUP){
+            if((time(NULL) - ((tcp_element*)(node->element))->last_timestamp) >= TIMEOUT || connmgr_data->pollfds[i].revents & POLLHUP){
                 
                 //remove node ; 
                 #ifdef DEBUG
-                printf("Client Node with id: %hu timed out\n", ((tcp_element*)(node->element))->sensor_id); 
+                printf("Client Node with id: %d timed out with time difference: %ld and socket no. %d\n", ((tcp_element*)(node->element))->sensor_id,(time(0) - ((tcp_element*)(node->element))->last_timestamp),connmgr_data->pollfds[i].fd); 
                 #endif
                
                     connmgr_data->socket_list = dpl_remove_at_reference(connmgr_data->socket_list, node, 1);
@@ -226,9 +231,8 @@ void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
 
                 sensor_data_t *data = malloc(sizeof(sensor_data_t));
                 int result, bytes;
-                bytes = sizeof(data->id);
-                result = tcp_receive(ptr->socket,&data->id, &bytes);
-               
+                bytes = sizeof(sensor_id_t);
+                result = tcp_receive(ptr->socket, &(data->id), &bytes);
                 if (bytes == 0) // closed connection
                 {
                     // client close connection frmo their side
@@ -255,12 +259,13 @@ void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
                 }
                 if (ptr->sensor_id == -1)
                 {
+                    printf("SensorID : %d", data->id); 
                     ptr->sensor_id = data->id;
                 }
-                bytes = sizeof(data->value);
-                result = tcp_receive(ptr->socket, &data->value, &bytes);
-                bytes = sizeof(data->ts);
-                result = tcp_receive(ptr->socket,&data->ts, &bytes);
+                bytes = sizeof(sensor_value_t);
+                result = tcp_receive(ptr->socket, &(data->value), &bytes);
+                bytes = sizeof(sensor_ts_t);
+                result = tcp_receive(ptr->socket, &(data->ts), &bytes);
                 ptr->last_timestamp = data->ts;
                 if ((result == TCP_NO_ERROR) && bytes)
                 {
@@ -270,7 +275,7 @@ void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
 
                     sbuffer_insert(connmgr_data->buffer, data); // don't free data
                 }
-                
+                //free(data); //remove this if inserted into shared buffer
             }
        
         }
@@ -282,7 +287,15 @@ void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
     free(temp->socket);
     free(temp);
 
+    return ; 
+
+
 }
+
+
+
+
+
 
 void connmgr_destroy(CONNMGR_DATA* connmgr_data)
 {
@@ -308,3 +321,4 @@ void connmgr_destroy(CONNMGR_DATA* connmgr_data)
     free(connmgr_data); 
     // else log successfully destroyed connmgr
 }
+

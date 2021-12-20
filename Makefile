@@ -2,7 +2,7 @@ TITLE_COLOR = \033[33m
 NO_COLOR = \033[0m
 
 # when executing make, compile all exe's
-all: sensor_gateway  file_creator
+all: sensor_gateway  file_creator sensor_test
 
 # When trying to compile one of the executables, first look for its .c files
 # Then check if the libraries are in the lib folder
@@ -10,13 +10,13 @@ sensor_gateway : main.c connmgr.c datamgr.c sensor_db.c sbuffer.c lib/libdplist.
 	@echo "$(TITLE_COLOR)\n***** CPPCHECK *****$(NO_COLOR)"
 	cppcheck --enable=all --suppress=missingIncludeSystem main.c connmgr.c datamgr.c sensor_db.c sbuffer.c
 	@echo "$(TITLE_COLOR)\n***** COMPILING sensor_gateway *****$(NO_COLOR)"
-	gcc -g -c main.c      -Wall -std=gnu99 -DDEBUG -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=6 -o main.o      -fdiagnostics-color=auto
-	gcc -g -c connmgr.c   -Wall -std=gnu99 -DDEBUG -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=6 -o connmgr.o   -fdiagnostics-color=auto
-	gcc -g -c datamgr.c   -Wall -std=gnu99 -DDEBUG -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=6 -o datamgr.o   -fdiagnostics-color=auto
-	gcc -g -c sensor_db.c -Wall -std=gnu99 -DDEBUG -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=6 -o sensor_db.o -fdiagnostics-color=auto
-	gcc -g -c sbuffer.c   -Wall -std=gnu99 -DDEBUG -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=6 -o sbuffer.o   -fdiagnostics-color=auto
-	gcc -g -c hashtable.c   -Wall -std=gnu99 -DDDEBUG -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=6 -o hashtable.o   -fdiagnostics-color=auto
-	gcc -g -c logger.c   -Wall -std=gnu99 -DDDEBUG -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=6 -o logger.o   -fdiagnostics-color=auto
+	gcc  -c main.c    -g  -Wall -std=c11 -DDEBUG -DSET_MIN_TEMP=-5 -DSET_MAX_TEMP=40 -DTIMEOUT=20 -o main.o      -fdiagnostics-color=auto
+	gcc  -c connmgr.c  -g  -Wall -std=c11 -DDEBUG -DSET_MIN_TEMP=-5 -DSET_MAX_TEMP=40 -DTIMEOUT=60 -o connmgr.o   -fdiagnostics-color=auto
+	gcc  -c datamgr.c  -g -Wall -std=c11 -DDEBUG -DSET_MIN_TEMP=-5 -DSET_MAX_TEMP=40 -DTIMEOUT=60 -o datamgr.o   -fdiagnostics-color=auto
+	gcc  -c sensor_db.c -g -Wall -std=c11 -DDEBUG -DSET_MIN_TEMP=-5 -DSET_MAX_TEMP=40 -DTIMEOUT=60 -o sensor_db.o -fdiagnostics-color=auto
+	gcc  -c sbuffer.c   -g -Wall -std=c11 -DDEBUG -DSET_MIN_TEMP=-5 -DSET_MAX_TEMP=40 -DTIMEOUT=60 -o sbuffer.o   -fdiagnostics-color=auto
+	gcc  -c hashtable.c -g  -Wall -std=c11 -DDDEBUG -DSET_MIN_TEMP=-5 -DSET_MAX_TEMP=40 -DTIMEOUT=60 -o hashtable.o   -fdiagnostics-color=auto
+	gcc  -c logger.c  -g -Wall -std=c11 -DDDEBUG -DSET_MIN_TEMP=-5 -DSET_MAX_TEMP=20 -DTIMEOUT=60 -o logger.o   -fdiagnostics-color=auto
 	@echo "$(TITLE_COLOR)\n***** LINKING sensor_gateway *****$(NO_COLOR)"
 	gcc hashtable.o logger.o main.o connmgr.o datamgr.o sensor_db.o sbuffer.o -ldplist -ltcpsock -lpthread -o sensor_gateway -Wall -L./lib -Wl,-rpath=./lib -lsqlite3 -fdiagnostics-color=auto
 
@@ -24,7 +24,8 @@ file_creator : file_creator.c
 	@echo "$(TITLE_COLOR)\n***** COMPILE & LINKING file_creator *****$(NO_COLOR)"
 	gcc file_creator.c -o file_creator -Wall -fdiagnostics-color=auto
 
-
+sensor_test: sensor_node.c lib/libtcpsock.so
+	gcc sensor_node.c -o sensor_test  -ltcpsock -L./lib -Wl,-rpath=./lib 
 # If you only want to compile one of the libs, this target will match (e.g. make liblist)
 libdplist : lib/libdplist.so
 libtcpsock : lib/libtcpsock.so
@@ -45,7 +46,7 @@ lib/libtcpsock.so : lib/tcpsock.c
 .PHONY : clean clean-all run zip
 
 clean:
-	rm -rf *.o sensor_gateway  file_creator *~
+	rm -rf *.o sensor_gateway sensor_test file_creator *~
 
 clean-all: clean
 	rm -rf lib/*.so

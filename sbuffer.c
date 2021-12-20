@@ -20,7 +20,7 @@ int sbuffer_init(sbuffer_t **buffer){
     ptr->reader_thread_count = 0;
     ptr->terminate_reader_threads = calloc(1, 1);
 
-    ptr->map = create_table(sbuffer_free_entry, sbuffer_add_table_entry, NULL, NULL);
+    ptr->map = umap_create(sbuffer_free_entry, sbuffer_add_table_entry, NULL, NULL);
     pthread_mutex_init(&(ptr->sbuffer_edit_mutex), NULL);
     pthread_cond_init(&(ptr->sbuffer_element_added), NULL);
 
@@ -40,12 +40,13 @@ int sbuffer_free(sbuffer_t **buffer){
     }
 
     pthread_mutex_lock(&((*buffer)->sbuffer_edit_mutex));
-    destroy_table((*buffer)->map);
+    umap_destroy((*buffer)->map);
     pthread_mutex_unlock(&((*buffer)->sbuffer_edit_mutex));
     for (int i = 0 ; i < (*buffer)->reader_thread_count; i++){// free iterators
         free((*buffer)->iterators[i]); 
     }
     free((*buffer)->iterators); 
+    free((*buffer)->terminate_reader_threads); 
     free(*buffer);
     *buffer = NULL;
     return SBUFFER_SUCCESS;
@@ -110,13 +111,37 @@ void sbuffer_reader_subscribe(sbuffer_t *buffer, int thread_id)
 
 void sbuffer_reader_unsubscribe(sbuffer_t *buffer, int thread_id)
 {
+    // lock mutex so info is added until the reader thread's data is deleted 
+    pthread_mutex_lock(&(buffer->sbuffer_edit_mutex)); 
+    sbuffer_table_entry* entry; 
+    buffer->reader_thread_count--; 
+    for (int i = 0 ; i < buffer->map->capacity; i++){
+        entry = (sbuffer_table_entry*)umap_get_entry_by_index(buffer->map, i); 
+        if(entry){
+     
+            for (int j = 0 ; j < entry->tbr_array_size; j++){
+                if (entry->to_be_read[i]->thread_id == thread_id){
+                    for (int k = j; k < entry->tbr_array_size-1; k++){
+                        entry->to_be_read[k] = entry->to_be_read[k+1]; 
+
+                    }
+                    entry->tbr_array_size--; 
+                    free(entry->to_be_read[entry->tbr_array_size]); 
+                    entry->to_be_read = realloc(entry->to_be_read, sizeof(sbuffer_entry_toberead* )*(entry->tbr_array_size)); 
+                    break; 
+                }
+            }
+  
+        }
+    }
+    pthread_mutex_unlock(&(buffer->sbuffer_edit_mutex)); 
 }
 
 typedef struct
 {
     sensor_data_t *data;
     sbuffer_t *buffer;
-    int thread_id;
+  
 
 } sbuffer_table_args;
 int sbuffer_insert(sbuffer_t *buffer, sensor_data_t *data)
@@ -124,14 +149,14 @@ int sbuffer_insert(sbuffer_t *buffer, sensor_data_t *data)
     // Packaging data addresses
 
     //end
-    sbuffer_table_args *args = malloc(sizeof(sbuffer_table_entry));
+    sbuffer_table_args *args = malloc(sizeof(sbuffer_table_args));
     args->buffer = buffer;
     args->data = data;
     pthread_mutex_lock(&(buffer->sbuffer_edit_mutex));
-    add_entry(buffer->map, args);
+    umap_addentry(buffer->map, args);
     pthread_cond_broadcast(&(buffer->sbuffer_element_added)); // wake up other threads if they're asleep
     pthread_mutex_unlock(&(buffer->sbuffer_edit_mutex));
-
+    free(args); 
     return 0;
 }
 
@@ -145,10 +170,10 @@ int sbuffer_add_table_entry(void *map, void *arg)
     // steps: check if key exists if not create it /*
     uint32_t index = hash_key(data->id);
     // searching if entry already exists (method of adding an entry is linear)
-    if (get_entry_by_index((hash_table *)map, index) != NULL)
+    if (umap_get_entry_by_index((hash_table *)map, index) != NULL)
     {
 
-        sbuffer_table_entry *entry = (sbuffer_table_entry *)(get_entry_by_index((hash_table *)map, index));
+        sbuffer_table_entry *entry = (sbuffer_table_entry *)(umap_get_entry_by_index((hash_table *)map, index));
         if (entry->key == data->id)
         
         {
@@ -170,11 +195,12 @@ int sbuffer_add_table_entry(void *map, void *arg)
         while (search != index)
         {
             // search for it linearly
-            entry = (sbuffer_table_entry *)(get_entry_by_index(map, index));
+            entry = (sbuffer_table_entry *)(umap_get_entry_by_index(map, index));
             if (entry == NULL)
             {
                 // create
                 entry = malloc(sizeof(sbuffer_table_entry));
+                entry->tbr_array_size = 0; 
                 entry->key = data->id;
                 entry->list = dpl_create(NULL, sbuffer_listelement_free, NULL);
                 dpl_insert_at_index(entry->list, data, 0, 0);
@@ -191,6 +217,7 @@ int sbuffer_add_table_entry(void *map, void *arg)
                     entry->to_be_read[i] = malloc(sizeof(sbuffer_entry_toberead));
                     entry->to_be_read[i]->thread_id = buffer->iterators[i]->thread_id;
                     entry->to_be_read[i]->tbr_count = 1;
+                    entry->tbr_array_size++; 
                 }
                 long *entries = (long *)((hash_table *)map)->entries;
                 entries[index] = (long)(void *)entry;
@@ -232,6 +259,7 @@ int sbuffer_add_table_entry(void *map, void *arg)
         // create new entry
         //
         sbuffer_table_entry *new_entry = malloc(sizeof(sbuffer_table_entry));
+        new_entry->tbr_array_size = 0; 
         new_entry->key = data->id;
         new_entry->list = dpl_create(NULL, sbuffer_listelement_free, NULL);
         dpl_insert_at_index(new_entry->list, (void *)data, 0, 0);
@@ -248,6 +276,7 @@ int sbuffer_add_table_entry(void *map, void *arg)
             new_entry->to_be_read[i] = malloc(sizeof(sbuffer_entry_toberead));
             new_entry->to_be_read[i]->thread_id = buffer->iterators[i]->thread_id;
             new_entry->to_be_read[i]->tbr_count = 1;
+            new_entry->tbr_array_size++; 
         }
 
         long *entries = (long *)((hash_table *)map)->entries;
@@ -261,6 +290,11 @@ int sbuffer_add_table_entry(void *map, void *arg)
         sbuffer_table_entry *ptr = (sbuffer_table_entry *)entry;
         dpl_free(&ptr->list, 1);
         ptr->list = NULL;
+        for(int i =0 ;i < ptr->tbr_array_size; i++ ){
+            //ptr->to_be_read[]
+            free(ptr->to_be_read[i]) ; 
+        }
+        free(ptr->to_be_read); 
         free(ptr);
         ptr = NULL;
     }
@@ -277,14 +311,15 @@ int sbuffer_add_table_entry(void *map, void *arg)
         for(int i = 0; i < buffer->reader_thread_count; i++){
             if (buffer->iterators[i]->thread_id == thread_id){
                 ptr = buffer->iterators[i]; 
+                      if(ptr->entry && sbuffer_get_entry_tbr(buffer, ptr->entry, thread_id)>0){ // iterator was se when entering new data into buffer 
+            return ptr->entry; 
+        }
                 break; 
             }
         } 
      
         if(ptr){ // reader thread id found 
-        if(ptr->entry && sbuffer_get_entry_tbr(buffer, ptr->entry, thread_id)>0){ // iterator was se when entering new data into buffer 
-            return ptr->entry; 
-        }
+  
  
 
              // iterator ptr needs data because it's current null 
@@ -316,8 +351,8 @@ int sbuffer_add_table_entry(void *map, void *arg)
         
         return NULL; // no data found 
     }
-
-    void sbuffer_update_entry(sbuffer_t * buffer, sbuffer_table_entry * entry, int thread_id, int count){
+//old sbuffer updat
+/*  void sbuffer_update_entry(sbuffer_t * buffer, sbuffer_table_entry * entry, int thread_id, int count){
         
         if (count > 0)
         {
@@ -351,6 +386,47 @@ int sbuffer_add_table_entry(void *map, void *arg)
             pthread_mutex_unlock(&buffer->sbuffer_edit_mutex);
         }
     }
+    }*/
+
+
+
+
+    void sbuffer_update_entry(sbuffer_t * buffer, sbuffer_table_entry * entry, int thread_id, int count){
+        
+       
+            sbuffer_entry_toberead* tbr = NULL ; // pointer to tbr counter for specific thread id 
+            for (int i = 0 ; i < buffer->reader_thread_count; i++){
+                if(entry->to_be_read[i]->thread_id == thread_id){
+                    tbr = entry->to_be_read[i]; 
+                    break; 
+                }
+            }
+
+            pthread_mutex_lock(&buffer->sbuffer_edit_mutex);
+            if(tbr){
+            
+    
+                tbr->tbr_count -= count;
+            }
+            char remaining_threads_to_read = buffer->reader_thread_count; 
+            for(int i =0 ; i < buffer->reader_thread_count; i++){
+                if(entry->to_be_read[i]->tbr_count ==0){
+                    remaining_threads_to_read--; 
+                }
+            }
+            if (remaining_threads_to_read==0)
+            {
+                // you can free list memory
+                while (entry->list->head)
+                { // remove elements
+                    entry->list = dpl_remove_at_index(entry->list, 0, 1);
+                }
+                // 
+            }
+
+            pthread_mutex_unlock(&buffer->sbuffer_edit_mutex);
+        
+    
     }
 void sbuffer_wakeup_readerthreads(sbuffer_t* buffer){
      pthread_mutex_lock(&(buffer->sbuffer_edit_mutex)); 

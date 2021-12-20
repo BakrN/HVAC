@@ -346,7 +346,8 @@ dplist_node_t *dpl_get_reference_of_element(dplist_t *list, void *element){
 	dplist_node_t* current = list->head; 	
 	while(current != NULL){
 	
-		if(list->element_compare(element, current->element) == 0){
+		if(current->element && list->element_compare(element, current->element) == 0){
+
 			return current; 
 		}
 		current = current->next ;  
@@ -405,15 +406,23 @@ dplist_t *dpl_insert_at_reference(dplist_t *list, void *element, dplist_node_t *
 
 	
 	dplist_t *dpl_remove_at_reference(dplist_t *list, dplist_node_t *reference, bool free_element){
-        if(list == NULL || list->head == NULL || reference == NULL){
+        if(list == NULL || list->head == NULL ){
             return NULL; }
-        dplist_node_t* current = list->head;
-		
-		int index = 0; 
+   
+		if (!list->head->next && !list->head->prev && reference == list->head ){
+			if(free_element && list->element_free)	{
+				list->element_free(&list->head->element); 
+
+			}
+			free(list->head); 
+			list->head = NULL; 
+			return list; 
+		}
+     dplist_node_t* current = list->head;
         while(current != NULL){
             if(current == reference) {
-				return dpl_remove_at_index(list, index, free_element); 
-				/*if(free_element){
+
+				if(free_element && list->element_free){
 					list->element_free(&current->element); 
 				}
 				
@@ -423,14 +432,14 @@ dplist_t *dpl_insert_at_reference(dplist_t *list, void *element, dplist_node_t *
 				if(current->next){
 					current->next->prev = current->prev; 
 				}
+		
 				
 				free(current); 
-				current = NULL; 
 				
-				return list ;*/ 
+				return list ;
             }
 			current = current->next; 
-			index ++; 
+			
         }
 		
         return list;
