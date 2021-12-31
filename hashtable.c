@@ -87,3 +87,16 @@ uint32_t hash_key(uint32_t id){
 }
 
 
+void umap_expand(hash_table* map , float factor ){
+    if(factor <= 1 ){
+        return ; 
+    }
+    int new_size = (int) ( map->capacity * factor)  ;
+    if (map->capacity == new_size){
+        new_size++ ; 
+    }
+    map->entries = realloc(map->entries, new_size* sizeof(long)); 
+    // recalculate indices 
+    
+    // re
+}

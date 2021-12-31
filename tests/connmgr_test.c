@@ -3,7 +3,7 @@
 void main(void){
     pid_t logger_process = fork(); 
     if(logger_process == 0){
-        log_init(); 
+        log_start(); 
     }
     else{
         

@@ -4,7 +4,7 @@
 void main(void){
     pid_t logger = fork(); 
     if(logger == 0){
-        log_init(); 
+        log_start(); 
     } 
     
     log_msg* msg = malloc(sizeof(log_msg)); 

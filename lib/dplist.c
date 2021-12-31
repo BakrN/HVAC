@@ -222,10 +222,10 @@ int dpl_size(dplist_t *list) {
 	} 
 	if(list->head == NULL){return 0; }
 	dplist_node_t* current = list->head; 
-	while(current != NULL){
+	while(current){
 		
 		current = current->next; 
-		 size++;			
+		size++;			
 	}
 
 	return size; 
@@ -342,11 +342,11 @@ dplist_node_t *dpl_get_previous_reference(dplist_t *list, dplist_node_t *referen
 
 
 dplist_node_t *dpl_get_reference_of_element(dplist_t *list, void *element){
-	if(list == NULL || list->head == NULL ){return NULL;} 
+	if(list == NULL || list->head == NULL || !element ){return NULL;} 
 	dplist_node_t* current = list->head; 	
 	while(current != NULL){
 	
-		if(current->element && list->element_compare(element, current->element) == 0){
+		if( list->element_compare(element, current->element) == 0){
 
 			return current; 
 		}
@@ -418,7 +418,7 @@ dplist_t *dpl_insert_at_reference(dplist_t *list, void *element, dplist_node_t *
 			list->head = NULL; 
 			return list; 
 		}
-     dplist_node_t* current = list->head;
+     	dplist_node_t* current = list->head;
         while(current != NULL){
             if(current == reference) {
 

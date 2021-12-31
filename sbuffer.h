@@ -34,7 +34,7 @@ typedef struct{
     pthread_cond_t sbuffer_element_added; 
     sbuffer_iterator** iterators; // Each reader thread will have an id with indices; 
     uint8_t reader_thread_count;
-    char* terminate_reader_threads; 
+    char* terminate_threads; 
 } sbuffer_t; 
 
 
@@ -80,7 +80,9 @@ int sbuffer_insert(sbuffer_t *buffer, sensor_data_t *data);
 
 int sbuffer_get_entry_tbr(sbuffer_t* buffer, sbuffer_table_entry* entry, int thread_id); 
 
-void sbuffer_update_entry(sbuffer_t * buffer, sbuffer_table_entry * entry, int thread_id, int count) ; // 
+    void sbuffer_update_iter(sbuffer_t * buffer, sbuffer_iterator * iter,int count);
 
 void sbuffer_wakeup_readerthreads(sbuffer_t* buffer); 
+
+   sbuffer_iterator* sbuffer_iter(sbuffer_t* buffer, int thread_id); 
 #endif  //_SBUFFER_H_

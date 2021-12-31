@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <unistd.h>
 
-
 /**
  *  This method holds the core functionality of your datamgr. It takes in 2 file pointers to the sensor files and parses them. 
  *  When the method finishes all data should be in the internal pointer list and all log messages should be printed to stderr.
@@ -15,6 +14,12 @@
 void *datamgr_init(void* args){
     datamgr_args* data_args = (datamgr_args*)args; 
     DATAMGR_DATA* datamgr_data = malloc(sizeof(DATAMGR_DATA));
+    // add connection to fifo 
+
+    datamgr_data->logger = (logger_t*)data_args->logger; 
+    datamgr_data->log_message = malloc(sizeof(log_msg)); 
+    datamgr_data->log_message->sequence_number = 3; 
+    datamgr_data->log_message->timestamp= time(0); 
 
     datamgr_data->datamgr_table = umap_create(datamgr_free_entry, datamgr_add_table_entry, datamgr_initialize_table, data_args->fp_sensor_map);
     datamgr_data->pipefd = data_args->pipefd; 
@@ -27,21 +32,26 @@ void *datamgr_init(void* args){
     return NULL; 
 }
 void datamgr_parse_sbuffer(DATAMGR_DATA* datamgr_data, sbuffer_t* buffer){
-    
-    int count = 0; 
-    while(!(*(buffer->terminate_reader_threads)) ){ //not terminating threads or there are values still in sbuffer 
+    long* args = malloc(2* sizeof(void*)); 
+    args[1] = (long)datamgr_data; 
+    while(!(*(buffer->terminate_threads)) ){ //not terminating threads or there are values still in sbuffer 
         if(sbuffer_wait_for_data(buffer, datamgr_data->reader_thread_id)){
             // terminate 
+            #ifdef DEBUG
             printf("DATAMGR_TERMINATED\n"); 
+            #endif
+            free(args); 
             return ; 
         }; 
-        sbuffer_table_entry* entry_ptr = get_next(buffer, datamgr_data->reader_thread_id);
-        dplist_node_t* current = entry_ptr->list->head;
+        sbuffer_iterator* iter = sbuffer_iter(buffer, datamgr_data->reader_thread_id); 
+        dplist_node_t* current = iter->entry->list->head;
 
-        count = 0; 
 
-        while(current){
-            if(umap_addentry(datamgr_data->datamgr_table, current->element) ==-1){  // insert copy of data into datamgr 
+        int count = sbuffer_get_entry_tbr(buffer, iter->entry, datamgr_data->reader_thread_id); 
+        for (int i = 0 ; i < count; i ++)         {
+            args[0] =  (long) current->element; 
+            
+            if(umap_addentry(datamgr_data->datamgr_table, args) ==-1){  // insert copy of data into datamgr 
                 // write to pipe with conn mgr 
                 sensor_id_t id= ((sensor_data_t*)current->element)->id; 
                 if(write(datamgr_data->pipefd, &id, sizeof(sensor_id_t)) < sizeof(sensor_id_t)){
@@ -50,15 +60,15 @@ void datamgr_parse_sbuffer(DATAMGR_DATA* datamgr_data, sbuffer_t* buffer){
             
             } 
             current = current->next; 
-            count++; 
+           
         }
         
-    //
-    
-        sbuffer_update_entry(buffer, entry_ptr, datamgr_data->reader_thread_id, count); 
+      
+        sbuffer_update_iter(buffer, iter, count); 
 
     }
     //terminated 
+    free(args); 
     return ; 
 } 
 
@@ -215,14 +225,7 @@ void datamgr_initialize_table(void* map, void* file){
                return; 
            }
        }
-         
-            ptr = (datamgr_table_entry*)malloc(sizeof(datamgr_table_entry)); 
-            ptr->list = dpl_create(datamgr_element_copy,datamgr_element_free,datamgr_element_compare ); 
-            ptr->key = sensor_id; 
-            ptr->current_average = -500.0 ; // initial value is -500
-            ptr->room_id = room_id; 
-      
-            entries[index] = (long)ptr; 
+  
    }
 
 
@@ -246,7 +249,10 @@ void datamgr_initialize_table(void* map, void* file){
 int datamgr_add_table_entry(void* map, void* args){
     // No mutex needed because no
     // steps: check if key exists if not create it 
-    sensor_data_t* data = (sensor_data_t*) args;
+    long* ptr = (long*) args;  
+
+    sensor_data_t* data = (sensor_data_t*) ptr[0];
+    DATAMGR_DATA* datamgr_data = (DATAMGR_DATA*) ptr[1]; 
     uint32_t index = hash_key(data->id) ; 
     // searching if entry already exists (method of adding an entry is linear)
     if( umap_get_entry_by_index(map, index) != NULL )
@@ -268,12 +274,24 @@ int datamgr_add_table_entry(void* map, void* args){
             list_size++; 
             entry->current_average += (data->value - entry->current_average)/list_size; 
             if(entry->current_average > SET_MAX_TEMP){
+                datamgr_data->log_message->timestamp = time(0);
+                asprintf(&(datamgr_data->log_message->message), "The sensor node wtih id: %hu reports it's too hot (running avg temperature = %f)", data->id, entry->current_average);
+                log_event( datamgr_data->log_message, datamgr_data->logger);
+                free(datamgr_data->log_message);
+                #ifdef DEBUG
                 fprintf(stderr, "Sensor %hu Exceeded max temp\n", data->id); 
                 fflush(stderr); 
+                #endif 
             }
             if(entry->current_average < SET_MIN_TEMP){
+                datamgr_data->log_message->timestamp = time(0);
+                asprintf(&(datamgr_data->log_message->message), "The sensor node wtih id: %hu reports it's too cold (running avg temperature = %f)", data->id, entry->current_average);
+                log_event( datamgr_data->log_message, datamgr_data->logger);
+                free(datamgr_data->log_message);
+                #ifdef DEBUG
                 fprintf(stderr, "Sensor %hu went below min temp\n", data->id); 
                 fflush(stderr); 
+                #endif 
             }
             
             return 0; // success 
@@ -302,14 +320,28 @@ int datamgr_add_table_entry(void* map, void* args){
                 dpl_remove_at_index(entry->list, 4, 1); 
             }
             dpl_insert_at_index(entry->list,data, 0 ,1); // copied 
-            entry->current_average += (entry->current_average)/list_size; 
+               dpl_insert_at_index(entry->list,data, 0 ,1); // copied 
+            list_size++; 
+            entry->current_average += (data->value - entry->current_average)/list_size; 
             if(entry->current_average > SET_MAX_TEMP){
+                datamgr_data->log_message->timestamp = time(0);
+                asprintf(&(datamgr_data->log_message->message), "The sensor node wtih id: %hu reports it's too hot (running avg temperature = %f)", data->id, entry->current_average);
+                log_event( datamgr_data->log_message, datamgr_data->logger);
+                free(datamgr_data->log_message);
+                #ifdef DEBUG 
                 fprintf(stderr, "Sensor %hu Exceeded max temp\n", data->id); 
                 fflush(stderr); 
+                #endif
             }
             if(entry->current_average < SET_MIN_TEMP){
+                datamgr_data->log_message->timestamp = time(0);
+                asprintf(&(datamgr_data->log_message->message), "The sensor node wtih id: %hu reports it's too cold (running avg temperature = %f)", data->id, entry->current_average);
+                log_event( datamgr_data->log_message, datamgr_data->logger);
+                free(datamgr_data->log_message);
+                #ifdef DEBUG
                 fprintf(stderr, "Sensor %hu went below min temp\n", data->id); 
                 fflush(stderr); 
+                #endif 
             }
             return 0; // success 
         
@@ -325,7 +357,15 @@ int datamgr_add_table_entry(void* map, void* args){
         // this shouldn't happen
         return -1; 
     }
+          #ifdef DEBUG 
+               fprintf(stderr, "Sensor with id: %hu isin't registered to a room \n", data->id); 
+               fflush(stderr); 
+               #endif
     // Not listening to this sensor
+    datamgr_data->log_message->timestamp = time(0);
+    asprintf(&(datamgr_data->log_message->message), "Received sensor data with invalid sensor node ID %hu", data->id);
+    log_event( datamgr_data->log_message, datamgr_data->logger);
+    free(datamgr_data->log_message);
     return -1; 
 }
 void datamgr_free_entry(void*entry){

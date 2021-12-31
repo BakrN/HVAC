@@ -9,7 +9,7 @@
 #include "sbuffer.h"
 #include "config.h"
 #include "hashtable.h"
-
+#include "logger.h"
 #ifndef RUN_AVG_LENGTH
 #define RUN_AVG_LENGTH 5
 #endif
@@ -38,11 +38,14 @@
 typedef struct{
   
     int pipefd; 
+
     int reader_thread_id; 
     hash_table* datamgr_table; 
     char* terminate_reader_thread; 
 
     void* retval ;
+    logger_t* logger; 
+    log_msg* log_message; 
 } DATAMGR_DATA; 
 
 

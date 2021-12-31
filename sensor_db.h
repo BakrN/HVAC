@@ -28,18 +28,21 @@
 #endif
 
 #define DBCONN sqlite3
-
+#define DB_SUCCESS 0 
+#define DB_FAILUIRE -1 
 typedef int (*callback_t)(void *, int, char **, char **);
 
 
 
 typedef struct {
-  int DB_GATEWAY_FD; 
   log_msg* DB_LOG_MSG; 
   DBCONN* db; 
   char* terminate_reader_thread; 
   void* retval ; 
   int reader_thread_id; 
+  uint8_t fail_count ; 
+
+  log_msg* message; 
 } STRGMGR_DATA; 
 
 void* strgmgr_init(void* args); 

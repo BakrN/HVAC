@@ -82,8 +82,8 @@ int main(int argc, char *argv[]) {
     // open TCP connection to the server; server is listening to SERVER_IP and PORT
     for(int j = 0 ; j < SENSOR_COUNT; j++) {if (j == 31) continue; if(tcp_active_open(&client[j], server_port, server_ip)!=TCP_NO_ERROR) exit(EXIT_FAILURE) ;}
 
-    i = LOOPS;
-    while (i) {
+   
+    for(int k = 0 ; k < 20  ; k++) {
         for (int j= 0 ; j < SENSOR_COUNT ; j++){
           if (j == 31) continue; 
         data[j].value = data[j].value + TEMP_DEV * ((drand48() - 0.5) / 10);
@@ -101,7 +101,7 @@ int main(int argc, char *argv[]) {
        
     }
         sleep(sleep_time);
-        UPDATE(i);
+   
     
     }
 

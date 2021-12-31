@@ -2,7 +2,8 @@
 #define _GNU_SOURCE
 #include "datamgr.h"
 #include "connmgr.h"
-#include "sensor_db.h" 
+#include "sensor_db.h"
+#include "logger.h" 
 #include <unistd.h>
 #include <memory.h>
   #include <sys/types.h>
@@ -18,17 +19,19 @@ int main(int argc, char* argv[]){
         port = atoi(argv[1]);
 
     }
+    logger_t* logger = log_init(); 
+ 
     pid_t logger_process = fork(); 
     if(logger_process == 0){
-        log_init(); 
+        log_start(logger); 
     }
+    logger->w_pipefd = open("logFifo", O_WRONLY  ) ; // blocking
     pthread_t working_threads[3]; 
     int data_conn_pipefds[2]; 
     if(!pipe2(data_conn_pipefds, O_NONBLOCK)){
         //log faile dto open connection between connmgr and datamgr; 
     }
     
-    int reader_thread_ids[2]; 
     sbuffer_t* buffer1;
     sbuffer_init(&buffer1); 
     //connmgr_args
@@ -36,7 +39,7 @@ int main(int argc, char* argv[]){
     connmgr_args->port_number = port; 
     connmgr_args->pipefd = data_conn_pipefds[0]; 
     connmgr_args->buffer =(void*) buffer1;  
-    
+    connmgr_args->logger = (void*) logger; 
 
     //
     //datamgr_args
@@ -45,14 +48,18 @@ int main(int argc, char* argv[]){
     data_args->pipefd = data_conn_pipefds[1]; 
     data_args->fp_sensor_map = fp_sensor_map; 
     data_args->buffer = buffer1; 
-
+    data_args->logger = (void*) logger; 
     data_args->reader_thread_id = 0;
+
+
     // strgmgr_args 
     strgmgr_args* db_args = malloc(sizeof(strgmgr_args)) ; 
     
     db_args->buffer = (void*)buffer1; 
     db_args->clear_flag = 1; 
     db_args->reader_thread_id = 1; 
+    db_args->logger = (void*)logger;
+    
     pthread_create(&(working_threads[0]), NULL, strgmgr_init, db_args); 
 
 
@@ -70,9 +77,10 @@ int main(int argc, char* argv[]){
     free(db_args); 
 
     sbuffer_free(&buffer1);
-    printf("FREED SBUFFER\n"); 
+
+    log_destroy(logger); 
     kill(logger_process, SIGINT) ; 
-    printf("KILLLEd logger\n");
+ 
     wait(NULL); 
     return 0 ; 
 }
