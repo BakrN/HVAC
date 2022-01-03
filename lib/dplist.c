@@ -68,10 +68,11 @@ void dpl_free(dplist_t **list, bool free_element) {
 				current = current->next ; 
 
 				if(free_element && (*list)->element_free != NULL){
-					(*list)->element_free(&tmp->element); 
+					(*list)->element_free(&(tmp->element)); 
 					
 				}	
 				free(tmp); 
+				tmp= NULL; 
 			}
 
 		}
@@ -427,7 +428,7 @@ dplist_t *dpl_insert_at_reference(dplist_t *list, void *element, dplist_node_t *
 		
 				
 				free(current); 
-				
+				current = NULL; 
 				return list ;
             }
 			current = current->next; 

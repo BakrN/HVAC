@@ -206,7 +206,7 @@ void datamgr_initialize_table(void* map, void* file){
        uint16_t room_id, sensor_id; 
        long* entries = (long*)((hash_table*)map)->entries; 
         
-       sscanf(line,"%hu %hu\n", &room_id, &sensor_id); 
+       sscanf(line,"%hu %hu", &room_id, &sensor_id); 
        uint32_t index = hash_key(sensor_id); 
        if(entries[index] == 0){
            
@@ -220,6 +220,7 @@ void datamgr_initialize_table(void* map, void* file){
             continue; 
        }
        uint32_t count = index; 
+      
        while(entries[count] != 0){
            
            count++; 
@@ -241,9 +242,8 @@ void datamgr_initialize_table(void* map, void* file){
             ptr->current_average = -500.0 ; // initial value is -500
             ptr->room_id = room_id; 
             ptr->list_size = 0 ; 
-
       
-            entries[index] = (long)ptr; 
+            entries[count] = (long)ptr; 
    }
 
 

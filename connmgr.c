@@ -35,8 +35,9 @@ void tcp_element_free(void **element)
     if(tcp_close(&(((tcp_element *)*element)->socket))!= TCP_NO_ERROR){
        // error closing socket; 
     }
+    tcp_element* ptr = *element; 
+    free(ptr);
 
-    free(*element);
     *element = NULL; 
 }
 void* tcp_element_copy(void *src )
@@ -95,7 +96,7 @@ void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
     tcp_element *temp = malloc(sizeof(tcp_element));
     temp->socket = malloc(sizeof(tcpsock_t));
 
-    while (poll(connmgr_data->pollfds, conn_count + 2, 10000) > 0 && !(*(connmgr_data->buffer->terminate_threads)))
+    while (poll(connmgr_data->pollfds, conn_count + 2, TIMEOUT*1000*2) > 0 && !(*(connmgr_data->buffer->terminate_threads)))
     { // revents are cleared by poll function
     #ifdef DEBUG
         //printf("Current clients count: %d \n", conn_count);

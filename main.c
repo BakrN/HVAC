@@ -14,11 +14,12 @@
 #include <memory.h>
   #include <sys/types.h>
   #include <sys/wait.h>
-
+void print_help(void); 
 // NOTE reader threads should start first and subscribe to sbuffer then write thread can start; 
 int main(int argc, char* argv[]){
         int port;
          if (argc != 2) {
+             print_help(); 
         exit(EXIT_SUCCESS);
     } else {
         // to do: user input validation!
@@ -90,3 +91,10 @@ int main(int argc, char* argv[]){
     wait(NULL); 
     return 0 ; 
 }
+
+void print_help(){
+    printf("Use this program with 1 command line option: \n");
+    printf("\t%-15s : TCP server port number\n", "\'server port\'");
+}
+
+// hash table implementation 
