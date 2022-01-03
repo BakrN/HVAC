@@ -1,6 +1,9 @@
-/**
- * \author Abubakr Ehab Samir Nada
- */
+/** 
+ * \author Abubakr Nada 
+ * Last Name: Nada 
+ * First Name: Abubakr 
+ * Student Number: r0767316   
+*/
 
 #ifndef _CONFIG_H_
 #define _CONFIG_H_
@@ -17,25 +20,8 @@ typedef struct {
     double value;
     long ts;
 } sensor_data_t;
-typedef enum {
-    DATA_ENTRY, STORE_ENTRY
-} ENTRY_TYPE; 
-
-typedef struct {
-    sensor_data_t* data; 
-     
-} datamgr_element; 
 
 
-
-typedef struct{
-    uint32_t key; // sensor id; 
-
-    uint16_t room_id; 
-    double current_average; 
-    dplist_t* list;     
-
-}datamgr_table_entry; 
 typedef struct {
     int thread_id; 
     int tbr_count; 
@@ -47,11 +33,7 @@ typedef struct {
     sbuffer_entry_toberead** to_be_read; 
     int tbr_array_size; 
 } sbuffer_table_entry; 
-typedef struct {
-    uint32_t sequence_number; 
-    time_t timestamp; 
-    char* message; 
-} log_msg; 
+
 typedef struct {
     char clear_flag; 
     char* terminate_thread; 

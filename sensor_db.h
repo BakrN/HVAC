@@ -1,7 +1,9 @@
-/**
- * \author Abubakr Ehab Samir Nada
- */
-
+/** 
+ * \author Abubakr Nada 
+ * Last Name: Nada 
+ * First Name: Abubakr 
+ * Student Number: r0767316   
+*/
 #ifndef _SENSOR_DB_H_
 #define _SENSOR_DB_H_
 #define _GNU_SOURCE
@@ -42,7 +44,6 @@ typedef struct {
   int reader_thread_id; 
   uint8_t fail_count ; 
 
-  log_msg* message; 
 } STRGMGR_DATA; 
 
 void* strgmgr_init(void* args); 

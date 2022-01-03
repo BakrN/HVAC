@@ -1,3 +1,9 @@
+/** 
+ * \author Abubakr Nada 
+ * Last Name: Nada 
+ * First Name: Abubakr 
+ * Student Number: r0767316   
+*/
 #include "connmgr.h"
 
 #include <fcntl.h>              /* Obtain O_* constant definitions */

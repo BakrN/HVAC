@@ -1,3 +1,9 @@
+/** 
+ * \author Abubakr Nada 
+ * Last Name: Nada 
+ * First Name: Abubakr 
+ * Student Number: r0767316   
+*/
 
 #define _GNU_SOURCE
 #include "datamgr.h"
@@ -79,7 +85,7 @@ int main(int argc, char* argv[]){
     sbuffer_free(&buffer1);
 
     log_destroy(logger); 
-    kill(logger_process, SIGINT) ; 
+    
  
     wait(NULL); 
     return 0 ; 

@@ -1,7 +1,9 @@
-/**
- * \author Abubakr Ehab Samir Nada
- */
-
+/** 
+ * \author Abubakr Nada 
+ * Last Name: Nada 
+ * First Name: Abubakr 
+ * Student Number: r0767316   
+*/
 #ifndef DATAMGR_H_
 #define DATAMGR_H_
 
@@ -34,14 +36,22 @@
                       }                                             \
                     } while(0)
 
+typedef struct{
+    uint32_t key; // sensor id; 
 
+    uint16_t room_id; 
+    double current_average; 
+    dplist_t* list;     
+    int list_size ; 
+ 
+}datamgr_table_entry; 
 typedef struct{
   
     int pipefd; 
 
     int reader_thread_id; 
     hash_table* datamgr_table; 
-    char* terminate_reader_thread; 
+
 
     void* retval ;
     logger_t* logger; 

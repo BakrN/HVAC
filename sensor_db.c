@@ -1,3 +1,9 @@
+/** 
+ * \author Abubakr Nada 
+ * Last Name: Nada 
+ * First Name: Abubakr 
+ * Student Number: r0767316   
+*/
 #include "sensor_db.h" 
 
 #include <string.h> 
@@ -51,13 +57,14 @@ void* strgmgr_init(void* args){
   
     strgmgr_args* ptr = (strgmgr_args*)args; 
      dblog = (logger_t*) ptr->logger;
+
+    
+  
     STRGMGR_DATA* strgmgr_data = strmgr_init_connection(ptr->clear_flag); 
     strgmgr_data->terminate_reader_thread = ptr->terminate_thread; 
     strgmgr_data->reader_thread_id = ptr->reader_thread_id; 
     
-    strgmgr_data->message = malloc(sizeof(log_msg)); 
-    strgmgr_data->message->sequence_number = 2; 
-    strgmgr_data->message->timestamp = time(NULL); 
+ 
 
     sbuffer_reader_subscribe(ptr->buffer, strgmgr_data->reader_thread_id); 
     // while loop
@@ -75,9 +82,10 @@ void* strgmgr_init(void* args){
  */
 STRGMGR_DATA* strmgr_init_connection(char clear_up_flag){ 
     STRGMGR_DATA* strgmgr_data = malloc(sizeof(STRGMGR_DATA)); 
-    
     strgmgr_data->DB_LOG_MSG = malloc(sizeof(log_msg)); 
-    strgmgr_data->DB_LOG_MSG->sequence_number = DB_LOG_SEQUENCE_NO; 
+    strgmgr_data->DB_LOG_MSG->sequence_number = 2; 
+    strgmgr_data->DB_LOG_MSG->timestamp = time(NULL); 
+
     
     int sq_open = sqlite3_open(TO_STRING(DB_NAME), &strgmgr_data->db); 
     
@@ -420,7 +428,7 @@ int find_sensor_after_timestamp(DBCONN *conn, sensor_ts_t ts, callback_t f){
     return new_msg;  
 }
  logger_t* log_init(){ 
-    logger_t* logger= malloc(sizeof(logger_t)); 
+    logger_t* logger= calloc(1, sizeof(logger_t)); 
     pthread_mutex_init(&(logger->log_mutex), NULL); 
     logger->file = fopen("gateway.log", "w") ;
     if(!logger->file){
@@ -460,9 +468,12 @@ int find_sensor_after_timestamp(DBCONN *conn, sensor_ts_t ts, callback_t f){
             bytes = read(logger->r_pipefd, buffer, 200) ; 
             if(bytes == 0){
                 #ifdef DEBUG
-                printf("all log writers closed \n"); 
+                printf("all log writers closed , exiting now.. \n"); 
                 #endif
-                close(logger->r_pipefd); 
+
+                fclose(logger->file); 
+                free(logger); 
+                
                 exit(EXIT_SUCCESS); 
 
 
@@ -501,13 +512,15 @@ int find_sensor_after_timestamp(DBCONN *conn, sensor_ts_t ts, callback_t f){
     }
     
     free(test_message); 
+    
     pthread_mutex_unlock(&(logger->log_mutex)); 
 }
 
  void log_destroy(logger_t* logger){
 
      close(logger->w_pipefd); 
+     close(logger->r_pipefd); 
      fclose(logger->file); 
-        
      free(logger); 
  }
+ 

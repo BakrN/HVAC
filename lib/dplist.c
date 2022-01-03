@@ -175,7 +175,7 @@ dplist_t *dpl_remove_at_index(dplist_t *list, int index, bool free_element) {
 		 
 		return list; 
 	}
-	int size = dpl_size(list); 
+
 	if(index <= 0){ // Redundant could just change index to 0 
 		index = 0; 
 		dplist_node_t* current = list->head; 
@@ -189,30 +189,21 @@ dplist_t *dpl_remove_at_index(dplist_t *list, int index, bool free_element) {
 		free(current);
 		return list; 
 	}
-	if(index > size-1){index = size-1; } 
-	
-	
 	dplist_node_t* current = list->head; 
-	while (index != 0){
+	while(index != 0 && current->next){
 		current = current->next; 
-		index --; 
+		index -- ; 
 	}
-	
-	
-	if(current->next != NULL){
-		current->next->prev = current->prev;		
-	} 
-	if(current->prev!=NULL){
-			current->prev->next = current->next;
+	if(current->next){
+		current->prev->next = current->prev;
 	}
+	current->prev->next = current->next; 
 	if(free_element){
 		list->element_free(&current->element); 
 	}
-	
 	free(current); 
 	current = NULL; 
 	return list; 
-
 }
 
 int dpl_size(dplist_t *list) {
@@ -223,9 +214,10 @@ int dpl_size(dplist_t *list) {
 	if(list->head == NULL){return 0; }
 	dplist_node_t* current = list->head; 
 	while(current){
-		
+		printf("size of dplist: %d, current add %p, next add %p\n", size+1, current, current->next); 
 		current = current->next; 
 		size++;			
+		
 	}
 
 	return size; 
@@ -346,7 +338,7 @@ dplist_node_t *dpl_get_reference_of_element(dplist_t *list, void *element){
 	dplist_node_t* current = list->head; 	
 	while(current != NULL){
 	
-		if( list->element_compare(element, current->element) == 0){
+		if(current->element && list->element_compare(element, current->element) == 0){
 
 			return current; 
 		}
@@ -524,5 +516,18 @@ void divide_linked_list(dplist_node_t* head, dplist_node_t** sub_list1, dplist_n
 
 
 
+	dplist_t* dpl_remove_end(dplist_t* list, bool free_element){
 
+		dplist_node_t* node = list->head; 
+		while(node->next != NULL){
+			node = node->next; 
+		} 
+		node->prev->next = NULL; 
+		if(free_element){
+			list->element_free(&(node->element)); 
+		}
+		free(node); 
+		node = NULL; 
+		return list; 
+	}
     

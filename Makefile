@@ -16,8 +16,9 @@ sensor_gateway : main.c connmgr.c datamgr.c sensor_db.c sbuffer.c lib/libdplist.
 	gcc  -c sensor_db.c -g -Wall -std=c11 -DDEBUG -DSET_MIN_TEMP=-5 -DSET_MAX_TEMP=40 -DTIMEOUT=60 -o sensor_db.o -fdiagnostics-color=auto
 	gcc  -c sbuffer.c   -g -Wall -std=c11 -DDEBUG -DSET_MIN_TEMP=-5 -DSET_MAX_TEMP=40 -DTIMEOUT=60 -o sbuffer.o   -fdiagnostics-color=auto
 	gcc  -c hashtable.c -g  -Wall -std=c11 -DDDEBUG -DSET_MIN_TEMP=-5 -DSET_MAX_TEMP=40 -DTIMEOUT=60 -o hashtable.o   -fdiagnostics-color=auto
+	gcc -c lib/dplist.o -g -o dplist.o 
 	@echo "$(TITLE_COLOR)\n***** LINKING sensor_gateway *****$(NO_COLOR)"
-	gcc hashtable.o main.o connmgr.o datamgr.o sensor_db.o sbuffer.o -ldplist -ltcpsock -lpthread -o sensor_gateway -Wall -L./lib -Wl,-rpath=./lib -lsqlite3 -fdiagnostics-color=auto
+	gcc hashtable.o main.o connmgr.o datamgr.o sensor_db.o sbuffer.o lib/dplist.o -ltcpsock -lpthread -o sensor_gateway -Wall -L./lib -Wl,-rpath=./lib -lsqlite3 -fdiagnostics-color=auto
 
 file_creator : file_creator.c
 	@echo "$(TITLE_COLOR)\n***** COMPILE & LINKING file_creator *****$(NO_COLOR)"

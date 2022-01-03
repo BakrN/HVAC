@@ -1,6 +1,9 @@
-/**
- * \author Abubakr Ehab Samir Nada
- */
+/** 
+ * \author Abubakr Nada 
+ * Last Name: Nada 
+ * First Name: Abubakr 
+ * Student Number: r0767316   
+*/
 #define _GNU_SOURCE
 #include <stdlib.h>
 #include <stdio.h>

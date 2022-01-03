@@ -30,7 +30,7 @@ struct dplist {
 
 	int (*element_compare)(void *x, void *y);
 };
-
+dplist_t* dpl_remove_end(dplist_t* list, bool free_element); 
 /* General remark on error handling
  * All functions below will:
  * - use assert() to check if memory allocation was successfully.

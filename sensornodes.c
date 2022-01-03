@@ -1,5 +1,5 @@
 /**
- * \author Luc Vandeurzen
+
  */
 
 #include <stdio.h>
@@ -9,8 +9,8 @@
 #include <unistd.h>
 #include "config.h"
 #include "lib/tcpsock.h"
-#define SENSOR_COUNT 200
-#define LOOPS 20
+#define SENSOR_COUNT 5
+#define LOOPS 1300
 // conditional compilation option to control the number of measurements this sensor node wil generate
 #if (LOOPS > 1)
 #define UPDATE(i) (i--)
@@ -48,8 +48,8 @@
 #define LOG_CLOSE(...) (void)0
 #endif
 
-#define INITIAL_TEMPERATURE    20
-#define TEMP_DEV        5    // max afwijking vorige temperatuur in 0.1 celsius
+#define INITIAL_TEMPERATURE    25
+#define TEMP_DEV       30    // max afwijking vorige temperatuur in 0.1 celsius
 
 
 void print_help(void);
@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
     char server_ip[] = "127.0.0.1";
     tcpsock_t *client[SENSOR_COUNT];
     int i, bytes, sleep_time;
-    sleep_time = 1; 
+    sleep_time = 3; 
     int initial_temp; 
     LOG_OPEN();
 
@@ -80,13 +80,13 @@ int main(int argc, char *argv[]) {
     srand48(time(NULL));
 
     // open TCP connection to the server; server is listening to SERVER_IP and PORT
-    for(int j = 0 ; j < SENSOR_COUNT; j++) {if (j == 31) continue; if(tcp_active_open(&client[j], server_port, server_ip)!=TCP_NO_ERROR) exit(EXIT_FAILURE) ;}
+    for(int j = 0 ; j < SENSOR_COUNT; j++) { if(tcp_active_open(&client[j], server_port, server_ip)!=TCP_NO_ERROR) exit(EXIT_FAILURE) ;}
 
    
-    for(int k = 0 ; k < 20  ; k++) {
+    for(int k = 0 ; k < LOOPS  ; k++) {
         for (int j= 0 ; j < SENSOR_COUNT ; j++){
-          if (j == 31) continue; 
-        data[j].value = data[j].value + TEMP_DEV * ((drand48() - 0.5) / 10);
+    
+        data[j].value = INITIAL_TEMPERATURE + TEMP_DEV * 2*(drand48() - 0.5);
         time(&data[j].ts);
         // send data to server in this order (!!): <sensor_id><temperature><timestamp>
         // remark: don't send as a struct!
@@ -105,7 +105,7 @@ int main(int argc, char *argv[]) {
     
     }
 
-    for (int j = 0 ; j < SENSOR_COUNT; j++) {if(j==31) continue;  if (tcp_close(&client[j]) != TCP_NO_ERROR) ;}
+    for (int j = 0 ; j < SENSOR_COUNT; j++) { if (tcp_close(&client[j]) != TCP_NO_ERROR) ;}
 
     LOG_CLOSE();
 

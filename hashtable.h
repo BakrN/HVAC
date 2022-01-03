@@ -1,3 +1,9 @@
+/** 
+ * \author Abubakr Nada 
+ * Last Name: Nada 
+ * First Name: Abubakr 
+ * Student Number: r0767316   
+*/
 #pragma once
 #define _GNU_SOURCE 
 #include <stdio.h>
@@ -7,8 +13,7 @@
 #include <malloc.h>
 
 #define HASH_TABLE_SIZE 255
-// This is a fixed size linked list map;  One for data mgr, one for shared buffer 
-// pthread defined in main 
+// This is a fixed size unordered map;  One for data mgr, one for shared buffer 
 
 
 

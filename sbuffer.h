@@ -1,7 +1,9 @@
-/**
-
- * \author Abubakr Ehab Samir Nada
- */
+/** 
+ * \author Abubakr Nada 
+ * Last Name: Nada 
+ * First Name: Abubakr 
+ * Student Number: r0767316   
+*/
 
 #ifndef _SBUFFER_H_
 #define _SBUFFER_H_
