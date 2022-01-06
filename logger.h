@@ -39,5 +39,5 @@ typedef struct {
  void log_event( log_msg* event, logger_t* logger);
 
  void log_destroy(logger_t* logger);
-
+ int log_start(logger_t *logger); 
  #endif

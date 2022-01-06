@@ -15,9 +15,8 @@ sensor_gateway : main.c connmgr.c datamgr.c sensor_db.c sbuffer.c lib/libdplist.
 	gcc  -c datamgr.c  -g -Wall -std=c11 -DDEBUG -DSET_MIN_TEMP=-5 -DSET_MAX_TEMP=40 -DTIMEOUT=5 -o datamgr.o   -fdiagnostics-color=auto
 	gcc  -c sensor_db.c -g -Wall -std=c11 -DDEBUG -DSET_MIN_TEMP=-5 -DSET_MAX_TEMP=40 -DTIMEOUT=5 -o sensor_db.o -fdiagnostics-color=auto
 	gcc  -c sbuffer.c   -g -Wall -std=c11 -DDEBUG -DSET_MIN_TEMP=-5 -DSET_MAX_TEMP=40 -DTIMEOUT=5 -o sbuffer.o   -fdiagnostics-color=auto
-	gcc  -c hashtable.c -g  -Wall -std=c11 -DDDEBUG -DSET_MIN_TEMP=-5 -DSET_MAX_TEMP=40 -DTIMEOUT=5 -o hashtable.o   -fdiagnostics-color=auto
 	@echo "$(TITLE_COLOR)\n***** LINKING sensor_gateway *****$(NO_COLOR)"
-	gcc hashtable.o main.o connmgr.o datamgr.o sensor_db.o sbuffer.o -ldplist -ltcpsock -lpthread -o sensor_gateway -Wall -L./lib -Wl,-rpath=./lib -lsqlite3 -fdiagnostics-color=auto
+	gcc  main.o connmgr.o datamgr.o sensor_db.o sbuffer.o -ldplist -ltcpsock -lpthread -o sensor_gateway -Wall -L./lib -Wl,-rpath=./lib -lsqlite3 -fdiagnostics-color=auto
 
 file_creator : file_creator.c
 	@echo "$(TITLE_COLOR)\n***** COMPILE & LINKING file_creator *****$(NO_COLOR)"
@@ -54,4 +53,4 @@ run : sensor_gateway
 	@echo "Add your own implementation here..."
 
 zip:
-	zip lab_final.zip main.c connmgr.c connmgr.h datamgr.c datamgr.h sbuffer.c sbuffer.h sensor_db.c sensor_db.h config.h lib/dplist.c lib/dplist.h lib/tcpsock.c lib/tcpsock.h
+	zip lab_final.zip main.c logger.h hashtable.h connmgr.c connmgr.h datamgr.c datamgr.h sbuffer.c sbuffer.h sensor_db.c sensor_db.h config.h lib/dplist.c lib/dplist.h lib/tcpsock.c lib/tcpsock.h

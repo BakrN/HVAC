@@ -10,12 +10,6 @@
 #include <unistd.h>
 
 
-/**
- *  This method holds the core functionality of your datamgr. It takes in 2 file pointers to the sensor files and parses them. 
- *  When the method finishes all data should be in the internal pointer list and all log messages should be printed to stderr.
- *  \param fp_sensor_map file pointer to the map file
- *  \param fp_sensor_data file pointer to the binary data file
- */
 void *datamgr_init(void* args){
     datamgr_args* data_args = (datamgr_args*)args; 
     DATAMGR_DATA* datamgr_data = malloc(sizeof(DATAMGR_DATA));
@@ -28,18 +22,28 @@ void *datamgr_init(void* args){
     datamgr_data->logger = data_args->logger; 
     datamgr_data->reader_thread_id  = data_args->reader_thread_id; 
     sbuffer_reader_subscribe(data_args->buffer,datamgr_data->reader_thread_id ); 
-    datamgr_parse_sbuffer(datamgr_data, data_args->buffer); 
+    datamgr_listen_sbuffer(datamgr_data, data_args->buffer); 
     datamgr_free(datamgr_data); 
     return NULL; 
 }
-void datamgr_parse_sbuffer(DATAMGR_DATA* datamgr_data, sbuffer_t* buffer){
+
+/**
+ * @brief This funciton takes in a data manager and a shared buffer as arguments the datamgr listens to the sbuffer
+ * 
+ * @param datamgr_data DATAMGR_DATA ptr 
+ * @param buffer shared buffer ptr 
+ */
+void datamgr_listen_sbuffer(DATAMGR_DATA* datamgr_data, sbuffer_t* buffer){
+    if(!(datamgr_data && buffer)) return ; // assert that datamgr and buffer are not null
     long* ptr = malloc(2 * sizeof(void*)); 
     ptr[0] = (long)datamgr_data; 
 
     while(!(*(buffer->terminate_threads)) ){ //not terminating threads or there are values still in sbuffer 
         if(sbuffer_wait_for_data(buffer, datamgr_data->reader_thread_id)){
             // terminate 
+            #ifdef DEBUG
             printf("DATAMGR_TERMINATED\n"); 
+            #endif
             free(ptr); 
             return ; 
         }; 
@@ -81,6 +85,14 @@ void datamgr_parse_sbuffer(DATAMGR_DATA* datamgr_data, sbuffer_t* buffer){
     return ; 
 } 
 
+
+
+/**
+ *  This method holds the core functionality of your datamgr. It takes in 2 file pointers to the sensor files and parses them. 
+ *  When the method finishes all data should be in the internal pointer list and all log messages should be printed to stderr.
+ *  \param fp_sensor_map file pointer to the map file
+ *  \param fp_sensor_data file pointer to the binary data file
+ */
 /*void datamgr_parse_sensor_files(FILE *fp_sensor_map, FILE *fp_sensor_data){
     // check if files are not null 
     // create table if not createdd 
@@ -198,7 +210,7 @@ void datamgr_initialize_table(void* map, void* file){
     }
    FILE* fp_sensor_map = (FILE*) file; 
    
-   char* line[10] ; 
+   char line[20] ; 
    datamgr_table_entry* ptr ; 
     
     // add errror 
@@ -385,4 +397,106 @@ void datamgr_free_entry(void*entry){
     
     free(ptr); 
     entry=NULL; 
+}
+
+/** 
+ *FIXED  HASH TABLE IMPLEMENTATION
+ * 
+ * */
+
+hash_table* umap_create(void (*free_entry)(void* entry),
+    int (*add_table_entry)(void* map, void* data), // 0 for success , -1 otherwise 
+    void (*initialize_table)(void* map, void*arg), void* arg){
+
+    hash_table* mp = malloc(sizeof(hash_table));
+    
+    
+
+    mp->entries = calloc(HASH_TABLE_SIZE, sizeof(void*)); 
+    long* entries = (long*)mp->entries; 
+    
+
+    for( int i = 0; i < HASH_TABLE_SIZE; i++){
+        
+        
+        entries[i] = (long)NULL; 
+   
+    }
+
+    
+    mp->add_table_entry = add_table_entry;  
+    mp->free_entry = free_entry; 
+
+    mp->capacity = HASH_TABLE_SIZE; 
+    mp->count = 0; 
+    
+
+    
+    
+    
+    if(initialize_table != NULL){
+         mp->initialize_table = initialize_table; 
+        initialize_table((void*)mp,arg); 
+    }
+ 
+
+    return mp; 
+}
+void* umap_get_entry_by_index(hash_table* map, uint32_t index){
+
+    long* entries =  (long*)map->entries; 
+    return (void*)entries[index]; 
+}
+void umap_destroy(hash_table* map){
+
+    long* entries =  (long*) map->entries; 
+    for(int i = 0; i < map->capacity; i++){
+        
+       if(entries[i] != (long)NULL && map->free_entry != NULL){
+         
+           map->free_entry((void*)entries[i]);
+            entries[i] = (long)NULL; 
+        } 
+   }
+
+    free(map->entries); 
+    free(map); 
+    map = NULL; 
+}      
+void* get_entry_by_key(hash_table* map, uint32_t key){
+    long* ptr = (long*) map->entries; 
+    return (void*)ptr[hash_key(key)] ; 
+}
+int umap_addentry(hash_table*map, void* data){
+    
+    return map->add_table_entry((void*)map, data) ; 
+}
+uint32_t hash_key(uint32_t id){
+    uint32_t hash = 2166136261; //32 bit offset
+    uint32_t FNV_prime = 16777619 ;
+    return ((hash*FNV_prime)^ id) % HASH_TABLE_SIZE;
+    /*
+   hash = offset_basis
+    for each octet_of_data to be hashed
+     hash = hash * FNV_prime
+     hash = hash xor octet_of_data
+    return hash
+
+32 bit offset_basis = 2166136261
+32 bit FNV_prime = 224 + 28 + 0x93 = 16777619*/ 
+}
+
+
+void umap_expand(hash_table* map , float factor ){
+    if(factor <= 1 ){
+        return ; 
+    }
+    int new_size = (int) ( map->capacity * factor)  ;
+    if (map->capacity == new_size){
+        new_size++ ; 
+    }
+    map->entries = realloc(map->entries, new_size* sizeof(long)); 
+    // recalculate indices 
+    
+    // re
 }

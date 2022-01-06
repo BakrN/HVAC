@@ -35,7 +35,12 @@ int command_callback(void *arg, int col_no, char **result, char **col_names)
 {
     return 0;
 }
-
+/**
+ * @brief This function creates an a table in the DB if it doesn't exit with the defined table name  
+ * 
+ * @param db 
+ * @return int DB_SUCCESS or DB_FAILURE
+ */
 int create_dbtable(DBCONN *db)
 {
 
@@ -61,7 +66,6 @@ void *strgmgr_init(void *args)
     dblog = (logger_t *)ptr->logger;
 
     STRGMGR_DATA *strgmgr_data = strmgr_init_connection(ptr->clear_flag);
-    strgmgr_data->terminate_reader_thread = ptr->terminate_thread;
     strgmgr_data->reader_thread_id = ptr->reader_thread_id;
 
     sbuffer_reader_subscribe(ptr->buffer, strgmgr_data->reader_thread_id);
@@ -81,9 +85,9 @@ void *strgmgr_init(void *args)
 STRGMGR_DATA *strmgr_init_connection(char clear_up_flag)
 {
     STRGMGR_DATA *strgmgr_data = malloc(sizeof(STRGMGR_DATA));
-    strgmgr_data->DB_LOG_MSG = malloc(sizeof(log_msg));
-    strgmgr_data->DB_LOG_MSG->sequence_number = 2;
-    strgmgr_data->DB_LOG_MSG->timestamp = time(NULL);
+    
+    strgmgr_data->DB_LOG_MSG.sequence_number = 2;
+    strgmgr_data->DB_LOG_MSG.timestamp = time(NULL);
 
     int sq_open = sqlite3_open(TO_STRING(DB_NAME), &strgmgr_data->db);
 
@@ -92,28 +96,28 @@ STRGMGR_DATA *strmgr_init_connection(char clear_up_flag)
         // LOG errror
 
         disconnect(strgmgr_data);
-        strgmgr_data->DB_LOG_MSG->timestamp = time(0);
-        asprintf(&(strgmgr_data->DB_LOG_MSG->message), "Unable to connect to SQL server");
-        log_event(strgmgr_data->DB_LOG_MSG, dblog);
-        free(strgmgr_data->DB_LOG_MSG->message);
+        strgmgr_data->DB_LOG_MSG.timestamp = time(0);
+        asprintf(&(strgmgr_data->DB_LOG_MSG.message), "Unable to connect to SQL server");
+        log_event(&(strgmgr_data->DB_LOG_MSG), dblog);
+        free(strgmgr_data->DB_LOG_MSG.message);
         /* 
         STRG MGR DESTROY 
         */
         return NULL;
     }
-    strgmgr_data->DB_LOG_MSG->timestamp = time(0);
-    asprintf(&(strgmgr_data->DB_LOG_MSG->message), "Connection to SQL server established");
-    log_event(strgmgr_data->DB_LOG_MSG, dblog);
-    free(strgmgr_data->DB_LOG_MSG->message);
+    strgmgr_data->DB_LOG_MSG.timestamp = time(0);
+    asprintf(&(strgmgr_data->DB_LOG_MSG.message), "Connection to SQL server established");
+    log_event(&(strgmgr_data->DB_LOG_MSG), dblog);
+    free(strgmgr_data->DB_LOG_MSG.message);
 
     // log opened database successfully
     // check if table name exists else create it;
     create_dbtable(strgmgr_data->db);
     // log table opened successfully
-    strgmgr_data->DB_LOG_MSG->timestamp = time(0);
-    asprintf(&(strgmgr_data->DB_LOG_MSG->message), "Table with name (%s) opened successully", TO_STRING(TABLE_NAME));
-    log_event(strgmgr_data->DB_LOG_MSG, dblog);
-    free(strgmgr_data->DB_LOG_MSG->message);
+    strgmgr_data->DB_LOG_MSG.timestamp = time(0);
+    asprintf(&(strgmgr_data->DB_LOG_MSG.message), "Table with name (%s) opened successully", TO_STRING(TABLE_NAME));
+    log_event(&(strgmgr_data->DB_LOG_MSG), dblog);
+    free(strgmgr_data->DB_LOG_MSG.message);
 
     char *errDB_LOG_MSG = 0;
     if (clear_up_flag)
@@ -126,10 +130,10 @@ STRGMGR_DATA *strmgr_init_connection(char clear_up_flag)
         if (sq_success != SQLITE_OK)
         {
             // loggg error message
-            strgmgr_data->DB_LOG_MSG->timestamp = time(0);
-            asprintf(&strgmgr_data->DB_LOG_MSG->message, "Failed cleared table");
-            log_event(strgmgr_data->DB_LOG_MSG, dblog);
-            free(strgmgr_data->DB_LOG_MSG->message);
+            strgmgr_data->DB_LOG_MSG.timestamp = time(0);
+            asprintf(&strgmgr_data->DB_LOG_MSG.message, "Failed cleared table");
+            log_event(&(strgmgr_data->DB_LOG_MSG), dblog);
+            free(strgmgr_data->DB_LOG_MSG.message);
 
             disconnect(strgmgr_data);
 
@@ -138,10 +142,10 @@ STRGMGR_DATA *strmgr_init_connection(char clear_up_flag)
         else
         {
             // Log successfully cleared
-            strgmgr_data->DB_LOG_MSG->timestamp = time(0);
-            asprintf(&strgmgr_data->DB_LOG_MSG->message, "Successfully cleared table");
-            log_event(strgmgr_data->DB_LOG_MSG, dblog);
-            free(strgmgr_data->DB_LOG_MSG->message);
+            strgmgr_data->DB_LOG_MSG.timestamp = time(0);
+            asprintf(&strgmgr_data->DB_LOG_MSG.message, "Successfully cleared table");
+            log_event(&(strgmgr_data->DB_LOG_MSG), dblog);
+            free(strgmgr_data->DB_LOG_MSG.message);
         }
     }
 
@@ -159,18 +163,16 @@ void disconnect(STRGMGR_DATA *strgmgr_data)
     if (sq_close != SQLITE_OK)
     {
         //   Log: failed to close db
-        strgmgr_data->DB_LOG_MSG->timestamp = time(0);
-        asprintf(&strgmgr_data->DB_LOG_MSG->message, "Failed to disconnected %s database", TO_STRING(DB_NAME));
-        log_event(strgmgr_data->DB_LOG_MSG, dblog);
-        free(strgmgr_data->DB_LOG_MSG->message);
-        free(strgmgr_data->DB_LOG_MSG);
+        strgmgr_data->DB_LOG_MSG.timestamp = time(0);
+        asprintf(&strgmgr_data->DB_LOG_MSG.message, "Failed to disconnected %s database", TO_STRING(DB_NAME));
+        log_event(&(strgmgr_data->DB_LOG_MSG), dblog);
+        free(strgmgr_data->DB_LOG_MSG.message);
         return;
     }
-    strgmgr_data->DB_LOG_MSG->timestamp = time(0);
-    asprintf(&strgmgr_data->DB_LOG_MSG->message, "Successfully disconnected the %s database", TO_STRING(DB_NAME));
-    log_event(strgmgr_data->DB_LOG_MSG, dblog);
-    free(strgmgr_data->DB_LOG_MSG->message);
-    free(strgmgr_data->DB_LOG_MSG);
+    strgmgr_data->DB_LOG_MSG.timestamp = time(0);
+    asprintf(&strgmgr_data->DB_LOG_MSG.message, "Successfully disconnected the %s database", TO_STRING(DB_NAME));
+    log_event(&(strgmgr_data->DB_LOG_MSG), dblog);
+    free(strgmgr_data->DB_LOG_MSG.message);
     free(strgmgr_data);
 }
 
@@ -194,16 +196,16 @@ int insert_sensor(STRGMGR_DATA *strmgr_data, sensor_id_t id, sensor_value_t valu
     if (sq_success != SQLITE_OK)
     {
         // log failed DB_LOG_MSG
-        strmgr_data->DB_LOG_MSG->timestamp = time(0);
-        asprintf(&strmgr_data->DB_LOG_MSG->message, "Failed to register new entry of SensorID: %hu , error msg: %s", id, err_msg);
-        log_event(strmgr_data->DB_LOG_MSG, dblog);
-        free(strmgr_data->DB_LOG_MSG->message);
+        strmgr_data->DB_LOG_MSG.timestamp = time(0);
+        asprintf(&strmgr_data->DB_LOG_MSG.message, "Failed to register new entry of SensorID: %hu , error msg: %s", id, err_msg);
+        log_event(&(strmgr_data->DB_LOG_MSG), dblog);
+        free(strmgr_data->DB_LOG_MSG.message);
         return DB_FAILUIRE;
     }
-    strmgr_data->DB_LOG_MSG->timestamp = time(0);
-    asprintf(&strmgr_data->DB_LOG_MSG->message, "Successfully registered new entry of SensorID: %hu", id);
-    log_event(strmgr_data->DB_LOG_MSG, dblog);
-    free(strmgr_data->DB_LOG_MSG->message);
+    strmgr_data->DB_LOG_MSG.timestamp = time(0);
+    asprintf(&strmgr_data->DB_LOG_MSG.message, "Successfully registered new entry of SensorID: %hu", id);
+    log_event(&(strmgr_data->DB_LOG_MSG), dblog);
+    free(strmgr_data->DB_LOG_MSG.message);
     free(insert_command);
     return DB_SUCCESS;
 }
@@ -251,10 +253,10 @@ int insert_sensor_from_sbuffer(STRGMGR_DATA *strmgr_data, sbuffer_t *buffer)
                 if (strmgr_data->fail_count == 3)
                 {                                     // failed three times
                     *(buffer->terminate_threads) = 1; // exit
-                    strmgr_data->DB_LOG_MSG->timestamp = time(0);
-                    asprintf(&(strmgr_data->DB_LOG_MSG->message), "Database with name (%s) opened successfully", TO_STRING(DB_NAME));
-                    log_event(strmgr_data->DB_LOG_MSG, dblog);
-                    free(strmgr_data->DB_LOG_MSG->message);
+                    strmgr_data->DB_LOG_MSG.timestamp = time(0);
+                    asprintf(&(strmgr_data->DB_LOG_MSG.message), "Actions failed to be sent through SQL connection. Exiting Now");
+                    log_event(&(strmgr_data->DB_LOG_MSG), dblog);
+                    free(strmgr_data->DB_LOG_MSG.message);
                     return -1;
                 }
                 sleep(1); // sleep for a period of time 1 sec in this case
@@ -472,6 +474,7 @@ logger_t *log_init()
 #ifdef DEBUG
             printf("failed to create log process\n");
 #endif
+            free(logger); 
             return NULL;
         }
     }
@@ -493,10 +496,10 @@ int log_start(logger_t *logger)
 
     char buffer[200];
     memset(buffer, 0, 200);
-    int bytes = 0;
+ 
     while (1)
     {
-        bytes = read(logger->r_pipefd, buffer, 200);
+        int bytes = read(logger->r_pipefd, buffer, 200);
         if (bytes == 0)
         {
 #ifdef DEBUG

@@ -5,11 +5,12 @@
  * Student Number: r0767316   
 */
 #pragma once
+#define _GNU_SOURCE             /* See feature_test_macros(7) */
+
 #include "lib/tcpsock.h"
 #include "config.h"
 #include "sbuffer.h"
 #include "logger.h"
-#define _GNU_SOURCE             /* See feature_test_macros(7) */
 
 #include <pthread.h>
 #ifndef TIMEOUT

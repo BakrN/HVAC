@@ -32,17 +32,17 @@
 #define DBCONN sqlite3
 #define DB_SUCCESS 0 
 #define DB_FAILUIRE -1 
+
 typedef int (*callback_t)(void *, int, char **, char **);
 
 
 
 typedef struct {
-  log_msg* DB_LOG_MSG; 
-  DBCONN* db; 
-  char* terminate_reader_thread; 
-  void* retval ; 
-  int reader_thread_id; 
-  uint8_t fail_count ; 
+
+  log_msg DB_LOG_MSG; // logmsg 
+  DBCONN* db; // SQLite connection 
+  int reader_thread_id; // This is the unique thread id assigned to the strgmgr
+  uint8_t fail_count ; // This variable keeps count of consecutive failed attempts to the sql DB
 
 } STRGMGR_DATA; 
 

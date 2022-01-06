@@ -12,11 +12,8 @@
 #include <stdint.h> 
 #include <poll.h>
 #include <malloc.h> 
-#define _GNU_SOURCE
 
-//
 
-// NOTE SHOULD PROBABLY KEEP TRACK OF SENSOR IDS SO THAT IF THEY TRY TO CONNECT AGAIN I REFUSE THEM 
 
 
 int tcp_element_compare(void *x, void *y)
@@ -238,7 +235,7 @@ void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
                 {
                     // client close connection frmo their side
                     #ifdef DEBUG
-                    printf("Client Closing Connection ...  \n");
+                    printf("Client Closing Connection ... %hu \n" ,ptr->socket->sd);
                     #endif
 
                  

@@ -116,7 +116,7 @@ int datamgr_add_table_entry(void* map, void* args);
 void datamgr_free_entry(void*entry); 
 
 void* datamgr_init(void* args); 
-void datamgr_parse_sbuffer(DATAMGR_DATA* datamgr_data, sbuffer_t* buffer); 
+void datamgr_listen_sbuffer(DATAMGR_DATA* datamgr_data, sbuffer_t* buffer); 
 //* TESTING FUNCS TO BE REMOVED LATER*/ 
 dplist_t* datamgr_get_list_by_key(uint32_t key); 
 

@@ -1,5 +1,195 @@
-2 1641249125: Connection to SQL server established
-2 1641249125: Table with name (SensorData) opened successully
-2 1641249125: Successfully cleared table
-1 1641249135: Connmgr Destroyed Successfully
-2 1641249135: Successfully disconnected the Sensor.db database
+2 1641497251: Connection to SQL server established
+2 1641497251: Table with name (SensorData) opened successully
+2 1641497251: Successfully cleared table
+1 1641497257: A sensor node with id: 101 has opened a new connection
+2 1641497257: Successfully registered new entry of SensorID: 101
+1 1641497274: A sensor node with id: 0 has opened a new connection
+1 1641497274: A sensor node with id: 1 has opened a new connection
+1 1641497274: A sensor node with id: 2 has opened a new connection
+1 1641497274: A sensor node with id: 3 has opened a new connection
+1 1641497274: A sensor node with id: 4 has opened a new connection
+2 1641497274: Successfully registered new entry of SensorID: 0
+2 1641497274: Successfully registered new entry of SensorID: 4
+2 1641497274: Successfully registered new entry of SensorID: 3
+2 1641497274: Successfully registered new entry of SensorID: 2
+2 1641497274: Successfully registered new entry of SensorID: 1
+2 1641497277: Successfully registered new entry of SensorID: 0
+2 1641497277: Successfully registered new entry of SensorID: 4
+2 1641497277: Successfully registered new entry of SensorID: 3
+2 1641497277: Successfully registered new entry of SensorID: 2
+2 1641497277: Successfully registered new entry of SensorID: 1
+2 1641497280: Successfully registered new entry of SensorID: 0
+2 1641497280: Successfully registered new entry of SensorID: 4
+2 1641497280: Successfully registered new entry of SensorID: 3
+2 1641497280: Successfully registered new entry of SensorID: 2
+2 1641497280: Successfully registered new entry of SensorID: 1
+1 1641497282: A sensor node with id: 101 has opened a new connection
+2 1641497283: Successfully registered new entry of SensorID: 101
+2 1641497283: Successfully registered new entry of SensorID: 0
+2 1641497283: Successfully registered new entry of SensorID: 4
+2 1641497283: Successfully registered new entry of SensorID: 3
+2 1641497283: Successfully registered new entry of SensorID: 2
+2 1641497283: Successfully registered new entry of SensorID: 1
+2 1641497286: Successfully registered new entry of SensorID: 0
+2 1641497286: Successfully registered new entry of SensorID: 4
+2 1641497286: Successfully registered new entry of SensorID: 3
+2 1641497286: Successfully registered new entry of SensorID: 2
+2 1641497286: Successfully registered new entry of SensorID: 1
+2 1641497289: Successfully registered new entry of SensorID: 0
+2 1641497289: Successfully registered new entry of SensorID: 4
+2 1641497289: Successfully registered new entry of SensorID: 3
+2 1641497289: Successfully registered new entry of SensorID: 2
+2 1641497289: Successfully registered new entry of SensorID: 1
+2 1641497292: Successfully registered new entry of SensorID: 0
+2 1641497292: Successfully registered new entry of SensorID: 4
+2 1641497292: Successfully registered new entry of SensorID: 3
+2 1641497292: Successfully registered new entry of SensorID: 2
+2 1641497292: Successfully registered new entry of SensorID: 1
+2 1641497295: Successfully registered new entry of SensorID: 0
+2 1641497295: Successfully registered new entry of SensorID: 4
+2 1641497295: Successfully registered new entry of SensorID: 3
+2 1641497295: Successfully registered new entry of SensorID: 2
+2 1641497295: Successfully registered new entry of SensorID: 1
+2 1641497298: Successfully registered new entry of SensorID: 0
+2 1641497298: Successfully registered new entry of SensorID: 4
+2 1641497298: Successfully registered new entry of SensorID: 3
+2 1641497298: Successfully registered new entry of SensorID: 2
+2 1641497298: Successfully registered new entry of SensorID: 1
+2 1641497301: Successfully registered new entry of SensorID: 0
+2 1641497301: Successfully registered new entry of SensorID: 4
+2 1641497301: Successfully registered new entry of SensorID: 3
+2 1641497301: Successfully registered new entry of SensorID: 2
+2 1641497301: Successfully registered new entry of SensorID: 1
+2 1641497304: Successfully registered new entry of SensorID: 0
+2 1641497304: Successfully registered new entry of SensorID: 4
+2 1641497304: Successfully registered new entry of SensorID: 3
+2 1641497304: Successfully registered new entry of SensorID: 2
+2 1641497304: Successfully registered new entry of SensorID: 1
+2 1641497307: Successfully registered new entry of SensorID: 0
+2 1641497307: Successfully registered new entry of SensorID: 4
+2 1641497307: Successfully registered new entry of SensorID: 3
+2 1641497307: Successfully registered new entry of SensorID: 2
+2 1641497307: Successfully registered new entry of SensorID: 1
+2 1641497310: Successfully registered new entry of SensorID: 0
+2 1641497310: Successfully registered new entry of SensorID: 4
+2 1641497310: Successfully registered new entry of SensorID: 3
+2 1641497310: Successfully registered new entry of SensorID: 2
+2 1641497310: Successfully registered new entry of SensorID: 1
+2 1641497313: Successfully registered new entry of SensorID: 0
+2 1641497313: Successfully registered new entry of SensorID: 4
+2 1641497313: Successfully registered new entry of SensorID: 3
+2 1641497313: Successfully registered new entry of SensorID: 2
+2 1641497313: Successfully registered new entry of SensorID: 1
+2 1641497316: Successfully registered new entry of SensorID: 0
+2 1641497316: Successfully registered new entry of SensorID: 4
+2 1641497316: Successfully registered new entry of SensorID: 3
+2 1641497316: Successfully registered new entry of SensorID: 2
+2 1641497316: Successfully registered new entry of SensorID: 1
+2 1641497319: Successfully registered new entry of SensorID: 0
+2 1641497319: Successfully registered new entry of SensorID: 4
+2 1641497319: Successfully registered new entry of SensorID: 3
+2 1641497319: Successfully registered new entry of SensorID: 2
+2 1641497319: Successfully registered new entry of SensorID: 1
+2 1641497322: Successfully registered new entry of SensorID: 0
+2 1641497322: Successfully registered new entry of SensorID: 4
+2 1641497322: Successfully registered new entry of SensorID: 3
+2 1641497322: Successfully registered new entry of SensorID: 2
+2 1641497322: Successfully registered new entry of SensorID: 1
+2 1641497325: Successfully registered new entry of SensorID: 0
+2 1641497325: Successfully registered new entry of SensorID: 4
+2 1641497325: Successfully registered new entry of SensorID: 3
+2 1641497325: Successfully registered new entry of SensorID: 2
+2 1641497325: Successfully registered new entry of SensorID: 1
+2 1641497328: Successfully registered new entry of SensorID: 0
+2 1641497328: Successfully registered new entry of SensorID: 4
+2 1641497328: Successfully registered new entry of SensorID: 3
+2 1641497328: Successfully registered new entry of SensorID: 2
+2 1641497328: Successfully registered new entry of SensorID: 1
+2 1641497331: Successfully registered new entry of SensorID: 0
+2 1641497331: Successfully registered new entry of SensorID: 4
+2 1641497331: Successfully registered new entry of SensorID: 3
+2 1641497331: Successfully registered new entry of SensorID: 2
+2 1641497331: Successfully registered new entry of SensorID: 1
+2 1641497334: Successfully registered new entry of SensorID: 0
+2 1641497334: Successfully registered new entry of SensorID: 4
+2 1641497334: Successfully registered new entry of SensorID: 3
+2 1641497334: Successfully registered new entry of SensorID: 2
+2 1641497334: Successfully registered new entry of SensorID: 1
+2 1641497337: Successfully registered new entry of SensorID: 0
+2 1641497337: Successfully registered new entry of SensorID: 4
+2 1641497337: Successfully registered new entry of SensorID: 3
+2 1641497337: Successfully registered new entry of SensorID: 2
+2 1641497337: Successfully registered new entry of SensorID: 1
+2 1641497340: Successfully registered new entry of SensorID: 0
+2 1641497340: Successfully registered new entry of SensorID: 4
+2 1641497340: Successfully registered new entry of SensorID: 3
+2 1641497340: Successfully registered new entry of SensorID: 2
+2 1641497340: Successfully registered new entry of SensorID: 1
+3 1641497343: The sensor node wtih id: 3 reports it's too hot (running avg temperature = 41.706878)
+2 1641497343: Successfully registered new entry of SensorID: 0
+2 1641497343: Successfully registered new entry of SensorID: 4
+2 1641497343: Successfully registered new entry of SensorID: 3
+2 1641497343: Successfully registered new entry of SensorID: 2
+2 1641497343: Successfully registered new entry of SensorID: 1
+2 1641497346: Successfully registered new entry of SensorID: 0
+2 1641497346: Successfully registered new entry of SensorID: 4
+2 1641497346: Successfully registered new entry of SensorID: 3
+2 1641497346: Successfully registered new entry of SensorID: 2
+2 1641497346: Successfully registered new entry of SensorID: 1
+2 1641497349: Successfully registered new entry of SensorID: 0
+2 1641497349: Successfully registered new entry of SensorID: 4
+2 1641497349: Successfully registered new entry of SensorID: 3
+2 1641497349: Successfully registered new entry of SensorID: 2
+2 1641497349: Successfully registered new entry of SensorID: 1
+2 1641497352: Successfully registered new entry of SensorID: 0
+2 1641497352: Successfully registered new entry of SensorID: 4
+2 1641497352: Successfully registered new entry of SensorID: 3
+2 1641497352: Successfully registered new entry of SensorID: 2
+2 1641497352: Successfully registered new entry of SensorID: 1
+2 1641497355: Successfully registered new entry of SensorID: 0
+2 1641497355: Successfully registered new entry of SensorID: 4
+2 1641497355: Successfully registered new entry of SensorID: 3
+2 1641497355: Successfully registered new entry of SensorID: 2
+2 1641497355: Successfully registered new entry of SensorID: 1
+2 1641497358: Successfully registered new entry of SensorID: 0
+2 1641497358: Successfully registered new entry of SensorID: 4
+2 1641497358: Successfully registered new entry of SensorID: 3
+2 1641497358: Successfully registered new entry of SensorID: 2
+2 1641497358: Successfully registered new entry of SensorID: 1
+2 1641497361: Successfully registered new entry of SensorID: 0
+2 1641497361: Successfully registered new entry of SensorID: 4
+2 1641497361: Successfully registered new entry of SensorID: 3
+2 1641497361: Successfully registered new entry of SensorID: 2
+2 1641497361: Successfully registered new entry of SensorID: 1
+2 1641497364: Successfully registered new entry of SensorID: 0
+2 1641497364: Successfully registered new entry of SensorID: 4
+2 1641497364: Successfully registered new entry of SensorID: 3
+2 1641497364: Successfully registered new entry of SensorID: 2
+2 1641497364: Successfully registered new entry of SensorID: 1
+2 1641497367: Successfully registered new entry of SensorID: 0
+2 1641497367: Successfully registered new entry of SensorID: 4
+2 1641497367: Successfully registered new entry of SensorID: 3
+2 1641497367: Successfully registered new entry of SensorID: 2
+2 1641497367: Successfully registered new entry of SensorID: 1
+2 1641497370: Successfully registered new entry of SensorID: 0
+2 1641497370: Successfully registered new entry of SensorID: 4
+2 1641497370: Successfully registered new entry of SensorID: 3
+2 1641497370: Successfully registered new entry of SensorID: 2
+2 1641497370: Successfully registered new entry of SensorID: 1
+2 1641497373: Successfully registered new entry of SensorID: 0
+2 1641497373: Successfully registered new entry of SensorID: 4
+2 1641497373: Successfully registered new entry of SensorID: 3
+2 1641497373: Successfully registered new entry of SensorID: 2
+2 1641497373: Successfully registered new entry of SensorID: 1
+2 1641497376: Successfully registered new entry of SensorID: 0
+2 1641497376: Successfully registered new entry of SensorID: 4
+2 1641497376: Successfully registered new entry of SensorID: 3
+2 1641497376: Successfully registered new entry of SensorID: 2
+2 1641497376: Successfully registered new entry of SensorID: 1
+1 1641497376: A sensor node with id: 2 has closed the connection
+1 1641497376: A sensor node with id: 3 has closed the connection
+1 1641497376: A sensor node with id: 4 has closed the connection
+1 1641497376: A sensor node with id: 0 has closed the connection
+1 1641497376: A sensor node with id: 1 has closed the connection
+1 1641497386: Connmgr Destroyed Successfully
+2 1641497386: Successfully disconnected the Sensor.db database

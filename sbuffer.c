@@ -342,9 +342,9 @@ int sbuffer_add_table_entry(void *map, void *arg)
         entry = (sbuffer_table_entry*) entries[i]; 
     
         if(entries[i]!=0){ // sbuffer table entry not null 
-            for (int i = 0; i < buffer->reader_thread_count; i++){
-                if(entry->to_be_read[i]->thread_id == thread_id){
-                    tbr = entry->to_be_read[i]; 
+            for (int j = 0; j < buffer->reader_thread_count; j++){
+                if(entry->to_be_read[j]->thread_id == thread_id){
+                    tbr = entry->to_be_read[j]; 
                 }
         }
         if(tbr){
