@@ -19,24 +19,36 @@
 
 void sbuffer_listelement_free(void ** element); 
 
-int sbuffer_add_table_entry(void* map, void* arg); 
+int sbuffer_add_table_entry(void* entry, void* arg); 
 void sbuffer_free_entry(void*entry); 
 
 //###############################################
+typedef struct {
+    int thread_id; 
+    int tbr_count; 
+}sbuffer_entry_toberead; // to be read count ; 
 
+typedef struct {
+
+    uint32_t key; // sensor id  
+    dplist_t* list; // pointers to sensor_data_t
+    sbuffer_entry_toberead** to_be_read; 
+    int tbr_array_size; 
+} sbuffer_table_entry; 
 typedef struct{
     
     sbuffer_table_entry* entry; 
     int thread_id; // unique to each thread assigned by main program ; 
 
 }sbuffer_iterator; 
+
 typedef struct{
-    hash_table* map; 
+    unordered_map* map; 
     pthread_mutex_t sbuffer_edit_mutex; 
     pthread_cond_t sbuffer_element_added; 
     sbuffer_iterator** iterators; // Each reader thread will have an id with indices; 
     uint8_t reader_thread_count;
-    char* terminate_threads; 
+    char terminate_threads; 
 } sbuffer_t; 
 
 

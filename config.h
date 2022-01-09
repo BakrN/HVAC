@@ -22,21 +22,10 @@ typedef struct {
 } sensor_data_t;
 
 
-typedef struct {
-    int thread_id; 
-    int tbr_count; 
-}sbuffer_entry_toberead; // to be read count ; 
-typedef struct {
 
-    uint32_t key; // sensor id  
-    dplist_t* list; // pointers to sensor_data_t
-    sbuffer_entry_toberead** to_be_read; 
-    int tbr_array_size; 
-} sbuffer_table_entry; 
 
 typedef struct {
     char clear_flag; 
-    char* terminate_thread; 
     void* buffer; 
     int reader_thread_id; 
     void* logger; 
@@ -45,7 +34,6 @@ typedef struct {
     int pipefd; 
     void* fp_sensor_map;
     void* buffer; 
-    char* terminate_thread; 
     int reader_thread_id; 
     void* logger; 
 }datamgr_args; 

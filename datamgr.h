@@ -47,15 +47,12 @@ typedef struct{
 }datamgr_table_entry; 
 typedef struct{
   
-    int pipefd; 
+    int pipefd; // pipe fd between connmgr and datamgr
 
     int reader_thread_id; 
-    hash_table* datamgr_table; 
-
-
-    void* retval ;
+    unordered_map* datamgr_table; 
     logger_t* logger; 
-    log_msg* log_message; 
+    log_msg log_message; 
 } DATAMGR_DATA; 
 
 
@@ -112,7 +109,7 @@ void* datamgr_element_copy(void * element);
 int datamgr_element_compare(void * x, void* y); 
 
 void datamgr_initialize_table(void* map, void* file); 
-int datamgr_add_table_entry(void* map, void* args); 
+int datamgr_add_table_entry(void* entry, void* args); 
 void datamgr_free_entry(void*entry); 
 
 void* datamgr_init(void* args); 

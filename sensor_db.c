@@ -220,7 +220,7 @@ int insert_sensor(STRGMGR_DATA *strmgr_data, sensor_id_t id, sensor_value_t valu
 int insert_sensor_from_sbuffer(STRGMGR_DATA *strmgr_data, sbuffer_t *buffer)
 {
 
-    while (!(*(buffer->terminate_threads)))
+    while (!(buffer->terminate_threads))
     {
 
         if (sbuffer_wait_for_data(buffer, strmgr_data->reader_thread_id) == 1)
@@ -252,7 +252,7 @@ int insert_sensor_from_sbuffer(STRGMGR_DATA *strmgr_data, sbuffer_t *buffer)
             {
                 if (strmgr_data->fail_count == 3)
                 {                                     // failed three times
-                    *(buffer->terminate_threads) = 1; // exit
+                    buffer->terminate_threads = 1; // exit
                     strmgr_data->DB_LOG_MSG.timestamp = time(0);
                     asprintf(&(strmgr_data->DB_LOG_MSG.message), "Actions failed to be sent through SQL connection. Exiting Now");
                     log_event(&(strmgr_data->DB_LOG_MSG), dblog);

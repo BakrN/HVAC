@@ -54,8 +54,8 @@ void* connmgr_init(void *args)
     conn_args* c_args  = (conn_args *)args; 
 
     connmgr_data->data_conn_pipefd = c_args->pipefd; 
-    connmgr_data->CONN_LOG_MSG = malloc(sizeof(log_msg));
-    connmgr_data->CONN_LOG_MSG->sequence_number = 1;
+ 
+    connmgr_data->CONN_LOG_MSG.sequence_number = 1;
     connmgr_data->logger = c_args->logger; 
     connmgr_data->socket_list = dpl_create(&tcp_element_copy, &tcp_element_free, &tcp_element_compare);
 
@@ -93,7 +93,7 @@ void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
     tcp_element *temp = malloc(sizeof(tcp_element));
     temp->socket = malloc(sizeof(tcpsock_t));
 
-    while (poll(connmgr_data->pollfds, conn_count + 2, TIMEOUT*1000*2) > 0 && !(*(connmgr_data->buffer->terminate_threads)))
+    while (poll(connmgr_data->pollfds, conn_count + 2, TIMEOUT*1000*2) > 0 && !(connmgr_data->buffer->terminate_threads))
     { // revents are cleared by poll function
     #ifdef DEBUG
         //printf("Current clients count: %d \n", conn_count);
@@ -239,10 +239,10 @@ void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
                     #endif
 
                  
-                    connmgr_data->CONN_LOG_MSG->timestamp = time(0);
-                    asprintf(&(connmgr_data->CONN_LOG_MSG->message), "A sensor node with id: %d has closed the connection", ptr->sensor_id);
-                    log_event( connmgr_data->CONN_LOG_MSG, connmgr_data->logger);
-                    free(connmgr_data->CONN_LOG_MSG->message);
+                    connmgr_data->CONN_LOG_MSG.timestamp = time(0);
+                    asprintf(&(connmgr_data->CONN_LOG_MSG.message), "A sensor node with id: %d has closed the connection", ptr->sensor_id);
+                    log_event( &(connmgr_data->CONN_LOG_MSG), connmgr_data->logger);
+                    free(connmgr_data->CONN_LOG_MSG.message);
 
                     connmgr_data->socket_list = dpl_remove_at_reference(connmgr_data->socket_list, node, 1);
                   
@@ -261,10 +261,10 @@ void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
                 if (ptr->sensor_id == -1)
                 {
                     ptr->sensor_id = data->id;
-                       connmgr_data->CONN_LOG_MSG->timestamp = time(0);
-                    asprintf(&(connmgr_data->CONN_LOG_MSG->message), "A sensor node with id: %hu has opened a new connection", data->id);
-                    log_event(connmgr_data->CONN_LOG_MSG, connmgr_data->logger);
-                    free(connmgr_data->CONN_LOG_MSG->message);
+                       connmgr_data->CONN_LOG_MSG.timestamp = time(0);
+                    asprintf(&(connmgr_data->CONN_LOG_MSG.message), "A sensor node with id: %hu has opened a new connection", data->id);
+                    log_event(&(connmgr_data->CONN_LOG_MSG), connmgr_data->logger);
+                    free(connmgr_data->CONN_LOG_MSG.message);
                 }
                 bytes = sizeof(data->value);
                 result = tcp_receive(ptr->socket, &data->value, &bytes);
@@ -273,9 +273,9 @@ void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
                 ptr->last_timestamp = data->ts;
                 if ((result == TCP_NO_ERROR) && bytes)
                 {
-#ifdef DEBUG
+                    #ifdef DEBUG
                    // printf("sensor id = %hu - temperature = %g - timestamp = %ld\n", data->id, data->value, (long int)data->ts);
-#endif
+                    #endif
 
                     sbuffer_insert(connmgr_data->buffer, data); // don't free data
                 }
@@ -305,12 +305,11 @@ void connmgr_destroy(CONNMGR_DATA* connmgr_data)
     }
     free(connmgr_data->pollfds);
     dpl_free(&connmgr_data->socket_list, 1); // takes care of closing sockets
-    connmgr_data->CONN_LOG_MSG->timestamp = time(0);
-    asprintf(&(connmgr_data->CONN_LOG_MSG->message), "Connmgr Destroyed Successfully");
-    log_event( connmgr_data->CONN_LOG_MSG, connmgr_data->logger);
-    free(connmgr_data->CONN_LOG_MSG->message);
-    free(connmgr_data->CONN_LOG_MSG);
-    *(connmgr_data->buffer->terminate_threads) =1; 
+    connmgr_data->CONN_LOG_MSG.timestamp = time(0);
+    asprintf(&(connmgr_data->CONN_LOG_MSG.message), "Connmgr Destroyed Successfully");
+    log_event( &(connmgr_data->CONN_LOG_MSG), connmgr_data->logger);
+    free(connmgr_data->CONN_LOG_MSG.message);
+    connmgr_data->buffer->terminate_threads =1; 
    
     sbuffer_wakeup_readerthreads(connmgr_data->buffer); 
     

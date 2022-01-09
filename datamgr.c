@@ -13,9 +13,8 @@
 void *datamgr_init(void* args){
     datamgr_args* data_args = (datamgr_args*)args; 
     DATAMGR_DATA* datamgr_data = malloc(sizeof(DATAMGR_DATA));
-    datamgr_data->log_message = malloc(sizeof(log_msg)); 
-    datamgr_data->log_message->timestamp = time(0) ; 
-    datamgr_data->log_message->sequence_number= 3 ; 
+    datamgr_data->log_message.timestamp = time(0) ; 
+    datamgr_data->log_message.sequence_number= 3 ; 
 
     datamgr_data->datamgr_table = umap_create(datamgr_free_entry, datamgr_add_table_entry, datamgr_initialize_table, data_args->fp_sensor_map);
     datamgr_data->pipefd = data_args->pipefd; 
@@ -34,17 +33,15 @@ void *datamgr_init(void* args){
  * @param buffer shared buffer ptr 
  */
 void datamgr_listen_sbuffer(DATAMGR_DATA* datamgr_data, sbuffer_t* buffer){
-    if(!(datamgr_data && buffer)) return ; // assert that datamgr and buffer are not null
-    long* ptr = malloc(2 * sizeof(void*)); 
-    ptr[0] = (long)datamgr_data; 
+ 
 
-    while(!(*(buffer->terminate_threads)) ){ //not terminating threads or there are values still in sbuffer 
+    while(buffer->terminate_threads == 0  ){ //not terminating threads or there are values still in sbuffer 
         if(sbuffer_wait_for_data(buffer, datamgr_data->reader_thread_id)){
             // terminate 
             #ifdef DEBUG
             printf("DATAMGR_TERMINATED\n"); 
             #endif
-            free(ptr); 
+           
             return ; 
         }; 
 
@@ -61,8 +58,8 @@ void datamgr_listen_sbuffer(DATAMGR_DATA* datamgr_data, sbuffer_t* buffer){
         }
 
         for (int i = 0 ; i < count ; i ++){
-            ptr[1] = (long) current->element; 
-            if(umap_addentry(datamgr_data->datamgr_table,ptr) ==-1){  // insert copy of data into datamgr 
+            sensor_data_t* data = (sensor_data_t*) current->element; 
+            if(umap_add_to_entry(datamgr_data->datamgr_table, current->element, data->id) ==-1){  // insert copy of data into datamgr 
                 // write to pipe with conn mgr 
                 sensor_id_t id= ((sensor_data_t*)current->element)->id; 
                 if(write(datamgr_data->pipefd, &id, sizeof(sensor_id_t)) < sizeof(sensor_id_t)){
@@ -70,8 +67,32 @@ void datamgr_listen_sbuffer(DATAMGR_DATA* datamgr_data, sbuffer_t* buffer){
                 }
             
             } 
+            else{
+                            datamgr_table_entry* entry = umap_get_entry_by_key(datamgr_data->datamgr_table , data->id)->entry; 
+            if(entry->current_average > SET_MAX_TEMP){
+                datamgr_data->log_message.timestamp = time(0);
+                asprintf(&(datamgr_data->log_message.message), "The sensor node wtih id: %hu reports it's too hot (running avg temperature = %f)", data->id, entry->current_average);
+                log_event( &(datamgr_data->log_message), datamgr_data->logger);
+                free(datamgr_data->log_message.message);
+                #ifdef DEBUG
+                fprintf(stderr, "Sensor %hu Exceeded max temp\n", data->id); 
+                fflush(stderr); 
+                #endif
+            }
+            if(entry->current_average < SET_MIN_TEMP){
+                    datamgr_data->log_message.timestamp = time(0);
+                asprintf(&(datamgr_data->log_message.message), "The sensor node wtih id: %hu reports it's too cold (running avg temperature = %f)", data->id, entry->current_average);
+                log_event( &(datamgr_data->log_message), datamgr_data->logger);
+                free(datamgr_data->log_message.message);
+                #ifdef DEBUG
+                fprintf(stderr, "Sensor %hu went below min temp\n", data->id); 
+                fflush(stderr); 
+                #endif
+            }
+            
+            }
             current = current->next; 
-        
+            // check current avg 
 
         }
         
@@ -81,7 +102,6 @@ void datamgr_listen_sbuffer(DATAMGR_DATA* datamgr_data, sbuffer_t* buffer){
 
     }
     //terminated 
-    free(ptr); 
     return ; 
 } 
 
@@ -107,7 +127,7 @@ void datamgr_listen_sbuffer(DATAMGR_DATA* datamgr_data, sbuffer_t* buffer){
         data->value = *(double*)buffer; 
         buffer += 8 ; 
         data->ts = *(time_t*)buffer;  
-        umap_addentry(datamgr_table, data); 
+        umap_add_to_entry(datamgr_table, data); 
         buffer -=10; 
     }
   
@@ -125,7 +145,6 @@ void datamgr_free(DATAMGR_DATA* datamgr_data){
     umap_destroy(datamgr_data->datamgr_table); 
     
     close(datamgr_data->pipefd ); 
-    free(datamgr_data->log_message); 
     free(datamgr_data); 
     
 }
@@ -137,7 +156,7 @@ void datamgr_free(DATAMGR_DATA* datamgr_data){
  * \return the corresponding room id
  */
 uint16_t datamgr_get_room_id(DATAMGR_DATA* datamgr_data,sensor_id_t sensor_id){
-    datamgr_table_entry* ptr = (datamgr_table_entry*)get_entry_by_key(datamgr_data->datamgr_table, sensor_id); 
+    datamgr_table_entry* ptr = (datamgr_table_entry*)umap_get_entry_by_key(datamgr_data->datamgr_table, sensor_id); 
     ERROR_HANDLER(ptr == NULL && ptr->key != sensor_id,  "invalid sensorid ") ; 
     return ptr->room_id; 
 }
@@ -149,7 +168,7 @@ uint16_t datamgr_get_room_id(DATAMGR_DATA* datamgr_data,sensor_id_t sensor_id){
  * \return the running AVG of the given sensor
  */
 sensor_value_t datamgr_get_avg(DATAMGR_DATA* datamgr_data,sensor_id_t sensor_id){
-    datamgr_table_entry* ptr = (datamgr_table_entry*)get_entry_by_key(datamgr_data->datamgr_table, sensor_id); 
+    datamgr_table_entry* ptr = (datamgr_table_entry*)umap_get_entry_by_key(datamgr_data->datamgr_table, sensor_id); 
     ERROR_HANDLER(ptr == NULL && ptr->key != sensor_id,  "invalid sensorid ") ; 
     return ptr->current_average; 
 }
@@ -161,7 +180,7 @@ sensor_value_t datamgr_get_avg(DATAMGR_DATA* datamgr_data,sensor_id_t sensor_id)
  * \return the last modified timestamp for the given sensor
  */
 time_t datamgr_get_last_modified(DATAMGR_DATA* datamgr_data,sensor_id_t sensor_id){
-     datamgr_table_entry* ptr = (datamgr_table_entry*)get_entry_by_key(datamgr_data->datamgr_table, sensor_id); 
+     datamgr_table_entry* ptr = (datamgr_table_entry*)umap_get_entry_by_key(datamgr_data->datamgr_table, sensor_id); 
     ERROR_HANDLER(ptr == NULL && ptr->key != sensor_id,  "invalid sensorid ") ; 
     return ((sensor_data_t*)dpl_get_element_at_index(ptr->list, 0))->ts; 
 }
@@ -216,46 +235,17 @@ void datamgr_initialize_table(void* map, void* file){
     // add errror 
    while( fgets( line, 10 , fp_sensor_map) != NULL){
        uint16_t room_id, sensor_id; 
-       long* entries = (long*)((hash_table*)map)->entries; 
+     
         
        sscanf(line,"%hu %hu", &room_id, &sensor_id); 
-       uint32_t index = hash_key(sensor_id); 
-       if(entries[index] == 0){
-           
-            ptr = (datamgr_table_entry*)malloc(sizeof(datamgr_table_entry)); 
-            ptr->list = dpl_create(datamgr_element_copy,datamgr_element_free,datamgr_element_compare ); 
-            ptr->key = sensor_id; 
-            ptr->current_average = -500.0 ; // initial value
-            ptr->room_id = room_id; 
-            ptr->list_size = 0 ; 
-            entries[index] = (long)ptr; 
-            continue; 
-       }
-       uint32_t count = index; 
-      
-       while(entries[count] != 0){
-           
-           count++; 
-           if(count >= ((hash_table*)map)->capacity){
-               count = 0; 
-           }
-           if(count == index) {
-               #ifdef DEBUG
-                printf("HASHTABLE FULL"); 
-               #endif
-                printf("HASHTABLE FULL");
-               return; 
-           }
-       }
-         
-            ptr = (datamgr_table_entry*)malloc(sizeof(datamgr_table_entry)); 
-            ptr->list = dpl_create(datamgr_element_copy,datamgr_element_free,datamgr_element_compare ); 
-            ptr->key = sensor_id; 
-            ptr->current_average = -500.0 ; // initial value is -500
-            ptr->room_id = room_id; 
-            ptr->list_size = 0 ; 
-      
-            entries[count] = (long)ptr; 
+ 
+        ptr = (datamgr_table_entry*)malloc(sizeof(datamgr_table_entry)); 
+        ptr->list = dpl_create(datamgr_element_copy,datamgr_element_free,datamgr_element_compare ); 
+        ptr->key = sensor_id; 
+        ptr->current_average = 0 ; // initial value
+        ptr->room_id = room_id; 
+        ptr->list_size = 0 ; 
+        umap_add_new((unordered_map*)map , (void*) ptr, ptr->key); 
    }
 
 
@@ -276,117 +266,21 @@ void datamgr_initialize_table(void* map, void* file){
     return ((datamgr_table_entry*)entries[index])->list; 
 }*/
 
-int datamgr_add_table_entry(void* map, void* args){
+int datamgr_add_table_entry(void* entry, void* args){
     // No mutex needed because no
     // steps: check if key exists if not create it 
-    long* ptr = (long* )args; 
-    sensor_data_t* data = (sensor_data_t*) ptr[1];
-    DATAMGR_DATA* datamgr_data = (DATAMGR_DATA*) ptr[0]; 
-    uint32_t index = hash_key(data->id) ; 
-    // searching if entry already exists (method of adding an entry is linear)
-    if( umap_get_entry_by_index(map, index) != NULL )
-    {
-        datamgr_table_entry* entry = (datamgr_table_entry*)(umap_get_entry_by_index((hash_table*)map, index)); 
-        if(entry->key == data->id){
-            if(entry->list_size ==0 ){
-                ((hash_table*)map)->count++; 
-                entry->current_average = 0; 
+   
+    sensor_data_t* data = (sensor_data_t*) args ;
+    datamgr_table_entry* ptr = (datamgr_table_entry*)(entry); 
+           
+    if(ptr->list_size == 5){
+                dpl_remove_at_index(ptr->list, 4, 1); 
+                ptr->list_size--; 
             }
-
-                     // Don't need mutex if only adding to index 0, just make sure you aren't checking prev
-            
-            if(entry->list_size == 5){
-                dpl_remove_at_index(entry->list, 4, 1); 
-                entry->list_size--; 
-            }
-            dpl_insert_at_index(entry->list,data, 0 ,1); // copied 
-            entry->list_size++; 
-            entry->current_average += (data->value - entry->current_average)/entry->list_size; 
-            if(entry->current_average > SET_MAX_TEMP){
-                datamgr_data->log_message->timestamp = time(0);
-                asprintf(&(datamgr_data->log_message->message), "The sensor node wtih id: %hu reports it's too hot (running avg temperature = %f)", data->id, entry->current_average);
-                log_event( datamgr_data->log_message, datamgr_data->logger);
-                free(datamgr_data->log_message->message);
-                #ifdef DEBUG
-                fprintf(stderr, "Sensor %hu Exceeded max temp\n", data->id); 
-                fflush(stderr); 
-                #endif
-            }
-            if(entry->current_average < SET_MIN_TEMP){
-                    datamgr_data->log_message->timestamp = time(0);
-                asprintf(&(datamgr_data->log_message->message), "The sensor node wtih id: %hu reports it's too cold (running avg temperature = %f)", data->id, entry->current_average);
-                log_event( datamgr_data->log_message, datamgr_data->logger);
-                free(datamgr_data->log_message->message);
-                #ifdef DEBUG
-                fprintf(stderr, "Sensor %hu went below min temp\n", data->id); 
-                fflush(stderr); 
-                #endif
-            }
-            
+            dpl_insert_at_index(ptr->list,data, 0 ,1); // copied 
+            ptr->list_size++; 
+            ptr->current_average += (data->value - ptr->current_average)/ptr->list_size; 
             return 0; // success 
-        }
-        uint32_t search = index+1; 
-        while( search!= index){
-            // search for it linearly    
-            entry = (datamgr_table_entry*)(umap_get_entry_by_index((hash_table*)map, index)); 
-            if(entry == NULL){
-               // NOt supposed to listen to this sensor id
-               // stderr
-               #ifdef DEBUG 
-               fprintf(stderr, "Sensor with id: %d isn't registered to a room YE\n", data->id); 
-               fflush(stderr); 
-               #endif
-            }
-            // check if sensor id already exists
-            else if (entry->key == data->id){
-                
-            if(entry->list_size == 0 ){
-                ((hash_table*)map)->count++; 
-                entry->current_average = 0; 
-            }
-            if(entry->list_size == 5){
-                entry->list = dpl_remove_at_index(entry->list, 4, 1); 
-                entry->list_size--; 
-            }
-            entry->list = dpl_insert_at_index(entry->list,data, 0 ,1); // copied 
-            entry->list_size++; 
-            entry->current_average += (entry->current_average)/entry->list_size; 
-            if(entry->current_average > SET_MAX_TEMP){
-                   datamgr_data->log_message->timestamp = time(0);
-                asprintf(&(datamgr_data->log_message->message), "The sensor node wtih id: %hu reports it's too hot (running avg temperature = %f)", data->id, entry->current_average);
-                log_event( datamgr_data->log_message, datamgr_data->logger);
-                free(datamgr_data->log_message->message);
-                #ifdef DEBUG
-                fprintf(stderr, "Sensor %hu Exceeded max temp\n", data->id); 
-                fflush(stderr); 
-                #endif 
-            }
-            if(entry->current_average < SET_MIN_TEMP){
-                     datamgr_data->log_message->timestamp = time(0);
-                asprintf(&(datamgr_data->log_message->message), "The sensor node wtih id: %hu reports it's too cold (running avg temperature = %f)", data->id, entry->current_average);
-                log_event( datamgr_data->log_message, datamgr_data->logger);
-                free(datamgr_data->log_message->message);
-                #ifdef DEBUG
-                fprintf(stderr, "Sensor %hu went below min temp\n", data->id); 
-                fflush(stderr); 
-                #endif
-            }
-            return 0; // success 
-        
-          
-            }
-
-            if(search++ == HASH_TABLE_SIZE){
-                search = 0;// wrap back around 
-            }
-        }
-    
-        // not found
-        // this shouldn't happen
-        return -1; 
-    }
-    // Not listening to this sensor
-    return -1; 
 }
 void datamgr_free_entry(void*entry){
     datamgr_table_entry*  ptr = (datamgr_table_entry*)entry; 
@@ -404,30 +298,24 @@ void datamgr_free_entry(void*entry){
  * 
  * */
 
-hash_table* umap_create(void (*free_entry)(void* entry),
+unordered_map* umap_create(void (*free_entry)(void* entry),
     int (*add_table_entry)(void* map, void* data), // 0 for success , -1 otherwise 
     void (*initialize_table)(void* map, void*arg), void* arg){
 
-    hash_table* mp = malloc(sizeof(hash_table));
+    unordered_map* mp = malloc(sizeof(unordered_map));
     
     
 
-    mp->entries = calloc(HASH_TABLE_SIZE, sizeof(void*)); 
-    long* entries = (long*)mp->entries; 
-    
-
-    for( int i = 0; i < HASH_TABLE_SIZE; i++){
-        
-        
-        entries[i] = (long)NULL; 
-   
+    mp->entries = calloc(DEFAULT_UMAP_SIZE, sizeof(umap_entry*)); 
+    for (int i = 0 ; i < DEFAULT_UMAP_SIZE; i ++){
+        mp->entries[i] = calloc(1 , sizeof(umap_entry)); 
+        mp->entries[i]->entry = NULL ;
+        mp->entries[i]->key = -1; 
     }
-
-    
     mp->add_table_entry = add_table_entry;  
     mp->free_entry = free_entry; 
 
-    mp->capacity = HASH_TABLE_SIZE; 
+    mp->capacity = DEFAULT_UMAP_SIZE; 
     mp->count = 0; 
     
 
@@ -442,39 +330,42 @@ hash_table* umap_create(void (*free_entry)(void* entry),
 
     return mp; 
 }
-void* umap_get_entry_by_index(hash_table* map, uint32_t index){
+umap_entry* umap_get_entry_by_index(unordered_map* map, uint32_t index){
 
-    long* entries =  (long*)map->entries; 
-    return (void*)entries[index]; 
+    return map->entries[index]; 
 }
-void umap_destroy(hash_table* map){
 
-    long* entries =  (long*) map->entries; 
+void umap_destroy(unordered_map* map){
+
+    
     for(int i = 0; i < map->capacity; i++){
         
-       if(entries[i] != (long)NULL && map->free_entry != NULL){
+       if(map->entries[i] && map->entries[i]->entry && map->free_entry != NULL){
          
-           map->free_entry((void*)entries[i]);
-            entries[i] = (long)NULL; 
+           map->free_entry((void*)map->entries[i]->entry);
+            
         } 
+        free( map->entries[i]) ; 
+        map->entries[i] = NULL;  
    }
 
     free(map->entries); 
     free(map); 
     map = NULL; 
 }      
-void* get_entry_by_key(hash_table* map, uint32_t key){
-    long* ptr = (long*) map->entries; 
-    return (void*)ptr[hash_key(key)] ; 
+
+int umap_add_to_entry(unordered_map*map,  void* data, int key){
+    umap_entry* entry = umap_get_entry_by_key(map, key ) ; 
+    if(!entry){
+        // failure 
+        return -1 ; 
+    }
+    return map->add_table_entry((void*)entry->entry, data) ; 
 }
-int umap_addentry(hash_table*map, void* data){
-    
-    return map->add_table_entry((void*)map, data) ; 
-}
-uint32_t hash_key(uint32_t id){
+uint32_t hash_key(uint32_t id, int capacity ){
     uint32_t hash = 2166136261; //32 bit offset
     uint32_t FNV_prime = 16777619 ;
-    return ((hash*FNV_prime)^ id) % HASH_TABLE_SIZE;
+    return ((hash*FNV_prime)^ id) % capacity;
     /*
    hash = offset_basis
     for each octet_of_data to be hashed
@@ -486,8 +377,33 @@ uint32_t hash_key(uint32_t id){
 32 bit FNV_prime = 224 + 28 + 0x93 = 16777619*/ 
 }
 
+umap_entry* umap_get_entry_by_key(unordered_map* map, int key){ 
+    uint32_t index = hash_key(key, map->capacity);
+    printf("map key %d , key: %d, index %u\n",map->entries[index]->key, key, index ); 
+    if (map->entries[index]->key == key){
+        printf("return value for key %d", key); 
+        return map->entries[index]; 
+    }
+    uint32_t init = index; 
+    while (map->entries[index] && map->entries[index]->key != key && map->entries[index]->key != -1){
+        
+        if(index == init){// looped around entire map
+            break; 
+        }
+        index++ ; 
+        if(index >= map->capacity){
+            index = 0 ; 
+        }
+        if(map->entries[index]->key == key){
 
-void umap_expand(hash_table* map , float factor ){
+        printf("return value for key %d", key); 
+            return map->entries[index]; 
+        }
+    }
+    printf("return null\n"); 
+    return NULL ; 
+}
+void umap_expand(unordered_map* map , float factor ){
     if(factor <= 1 ){
         return ; 
     }
@@ -495,8 +411,70 @@ void umap_expand(hash_table* map , float factor ){
     if (map->capacity == new_size){
         new_size++ ; 
     }
-    map->entries = realloc(map->entries, new_size* sizeof(long)); 
+  
     // recalculate indices 
+    umap_entry** new_entries = calloc(new_size ,  sizeof(umap_entry*)); 
+   
+    for (int i = 0 ;  i < map->count; i ++ ){
+            if(map->entries[i]->key == -1){
+                free(map->entries[i]); 
+                continue; 
+            }
+            uint32_t index = hash_key(map->entries[i]->key, new_size); 
+            while (new_entries[index] != NULL){
+               index ++ ; 
+               if ( index >= new_size )  { 
+                   index = 0 ; 
+               }
+
+            }
+            new_entries[index] = map->entries[i] ; 
+            printf("move from %d to %u\n", i , index); 
+        
+    }
+    map->capacity = new_size; 
+    free(map->entries); // free old memory 
+    map->entries = new_entries; 
+
+}
+
+int umap_add_new(unordered_map* map , void* value , int key){
+    //assert(map != NULL); 
+    if (!value){
+        return -1; 
+    }
     
-    // re
+    if ( map->count == map->capacity){ 
+         
+        umap_expand(map, 1.5) ; 
+        printf("Umap expanded from %d to %d\n", map->count, map->capacity);
+    }
+    uint32_t index = hash_key(key , map->capacity); 
+
+    while ( map->entries[index] && map->entries[index]->key != key && map->entries[index]->entry  ){
+        // existing entry in place of index 
+        
+        if (map->entries[index]->entry == NULL){
+             break ; 
+        }
+        if (index >= map->capacity){ // wrap back around 
+            index = 0 ; 
+        }
+        index ++ ; 
+    }
+ 
+    if(!map->entries[index]){
+        map->entries[index] = calloc(1,sizeof( umap_entry)); 
+        map->entries[index]->key = key; 
+        map->entries[index]->entry = value; 
+        map->count ++ ; 
+        printf("Added entirely new entry at index %u of key %d", index, key); 
+        return 0; 
+        
+    }
+    map->entries[index]->key = key; 
+    if(!map->entries[index]->entry) map->count++ ; 
+    map->entries[index]->entry = value ; 
+    printf("Added new entry to %d at index %d\n", key, index); 
+    return 0 ;
 }
