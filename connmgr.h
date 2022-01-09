@@ -16,14 +16,21 @@
 #ifndef TIMEOUT
 #define TIMEOUT 20 // IN SECONDS
 #endif
-// list of sensors with last timestamp
-// list of client tcp sockets to store data in (might be better to auto write to sbuffer once data is received )
+
+/**
+ * @brief type of element stored in the connection manager socket list   
+ * 
+ */
 typedef struct
 {
     tcpsock_t *socket;
     int sensor_id;
     time_t last_timestamp;
 } tcp_element;
+/**
+ * @brief Connection manager data struct  
+ * 
+ */
 typedef struct {
     tcpsock_t *server; // server
     dplist_t *socket_list; // socket_list
@@ -33,10 +40,27 @@ typedef struct {
     sbuffer_t* buffer; // buffer where data should be placed
     logger_t* logger; // logger ptr 
 } CONNMGR_DATA ; 
+
+/**
+ * @brief This function starts the connection manager and takes the buffer and port number as arguments as  pointer
+ * 
+ * @param args 
+ * @return void* 
+ */
 void* connmgr_init(void *args); 
 
+/**
+ * @brief start listening process  
+ * 
+ * @param port_number 
+ * @param connmgr_data 
+ */
 void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data); 
-
+/**
+ * @brief Stop listening process, close connections and free up memory  
+ * 
+ * @param connmgr_data 
+ */
 void connmgr_destroy(CONNMGR_DATA* connmgr_data); 
 
  

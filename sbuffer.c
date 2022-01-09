@@ -161,7 +161,6 @@ int sbuffer_insert(sbuffer_t *buffer, sensor_data_t *data)
     }
     else{
         // create entry 
-        printf("New entry needed for %d\n", data->id); 
         sbuffer_table_entry *new_entry = malloc(sizeof(sbuffer_table_entry));
         new_entry->key = data->id;
         new_entry->list = dpl_create(NULL, sbuffer_listelement_free, NULL);
@@ -296,44 +295,6 @@ int sbuffer_add_table_entry(void *entry , void *arg)
         
         return NULL; // no data found 
     }
-//old sbuffer updat
-/*  void sbuffer_update_entry(sbuffer_t * buffer, sbuffer_table_entry * entry, int thread_id, int count){
-        
-        if (count > 0)
-        {
-            sbuffer_entry_toberead* tbr = NULL ; // pointer to tbr counter for specific thread id 
-            for (int i = 0 ; i < buffer->reader_thread_count; i++){
-                if(entry->to_be_read[i]->thread_id == thread_id){
-                    tbr = entry->to_be_read[i]; 
-                    break; 
-                }
-            }
-            if(tbr){
-            pthread_mutex_lock(&buffer->sbuffer_edit_mutex);
-    
-                tbr->tbr_count -= count;
-            char remaining_threads_to_read = buffer->reader_thread_count; 
-            for(int i =0 ; i < buffer->reader_thread_count; i++){
-                if(entry->to_be_read[i]->tbr_count ==0){
-                    remaining_threads_to_read--; 
-                }
-            }
-            if (remaining_threads_to_read==0)
-            {
-                // you can free list memory
-                while (entry->list->head)
-                { // remove elements
-                    entry->list = dpl_remove_at_index(entry->list, 0, 1);
-                }
-                // 
-            }
-
-            pthread_mutex_unlock(&buffer->sbuffer_edit_mutex);
-        }
-    }
-    }*/
-
-
 
 
     void sbuffer_update_iter(sbuffer_t * buffer, sbuffer_iterator* iter , int count){
@@ -366,7 +327,7 @@ int sbuffer_add_table_entry(void *entry , void *arg)
                 { // remove elements
                     iter->entry->list = dpl_remove_at_index(iter->entry->list, 0, 1);
                 }
-                // 
+                
             }
 
             pthread_mutex_unlock(&buffer->sbuffer_edit_mutex);

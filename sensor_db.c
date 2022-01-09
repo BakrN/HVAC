@@ -9,26 +9,9 @@
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
-// typedef int (*callback_t)(void *, int, char **, char **); // zero if successfull else error
-/*The 2nd argument to the sqlite3_exec() callback function is the number of columns in the result. 
-The 3rd argument to the sqlite3_exec() callback is an array of pointers to strings obtained as if from sqlite3_column_text(), 
-one for each column. If an element of a result row is NULL then the corresponding string pointer for the sqlite3_exec()
- callback is a NULL pointer. The 4th argument to the sqlite3_exec() callback is an array of pointers to strings where each entry 
- represents the name of corresponding result column as obtained from sqlite3_column_name().*/
 
-// extern pthread_rwlock_t sbuffer_edit_mutex;
-// extern pthread_cond_t sbuffer_element_added;
+#define DB_SEQUENCE_NUMBER 2
 
-//sbuffer_table_entry* strmgr_iterator;
-/* Table should contain: \
-id: automatically generated unique id (AUTOINCREMENT)
-•sensor_id (INT)
-•sensor_value (DECIMAL(4,2))
-•timestamp (TIMESTAMP)*/
-
-// arg = 1st arg relayed back, int = no.columns,  1st char** array of pointers to strings, one for each column, 2nd char is column names
-//
-//function called for each row
 static logger_t *dblog;
 
 int command_callback(void *arg, int col_no, char **result, char **col_names)
@@ -67,11 +50,11 @@ void *strgmgr_init(void *args)
 
     STRGMGR_DATA *strgmgr_data = strmgr_init_connection(ptr->clear_flag);
     strgmgr_data->reader_thread_id = ptr->reader_thread_id;
-
+    // subscribe to buffer 
     sbuffer_reader_subscribe(ptr->buffer, strgmgr_data->reader_thread_id);
-    // while loop
+    // start listening 
     insert_sensor_from_sbuffer(strgmgr_data, ptr->buffer);
-    //
+
     disconnect(strgmgr_data);
     return NULL;
 }
@@ -80,15 +63,15 @@ void *strgmgr_init(void *args)
  * Make a connection to the database server
  * Create (open) a database with name DB_NAME having 1 table named TABLE_NAME  
  * \param clear_up_flag if the table existed, clear up the existing data when clear_up_flag is set to 1
- * \return the connection for success, NULL if an error occurs
+ * \return the storage data for success, NULL if an error occurs
  */
 STRGMGR_DATA *strmgr_init_connection(char clear_up_flag)
 {
     STRGMGR_DATA *strgmgr_data = malloc(sizeof(STRGMGR_DATA));
-    
-    strgmgr_data->DB_LOG_MSG.sequence_number = 2;
-    strgmgr_data->DB_LOG_MSG.timestamp = time(NULL);
 
+    strgmgr_data->DB_LOG_MSG.sequence_number = DB_SEQUENCE_NUMBER;
+    strgmgr_data->DB_LOG_MSG.timestamp = time(NULL);
+    //open connection
     int sq_open = sqlite3_open(TO_STRING(DB_NAME), &strgmgr_data->db);
 
     if (sq_open != SQLITE_OK)
@@ -178,7 +161,7 @@ void disconnect(STRGMGR_DATA *strgmgr_data)
 
 /**
  * Write an INSERT query to insert a single sensor measurement
- * \param conn pointer to the current connection
+ * \param STRGMGR_DATA pointer to the current strmgr_data
  * \param id the sensor id
  * \param value the measurement value
  * \param ts the measurement timestamp
@@ -222,11 +205,12 @@ int insert_sensor_from_sbuffer(STRGMGR_DATA *strmgr_data, sbuffer_t *buffer)
 
     while (!(buffer->terminate_threads))
     {
-
         if (sbuffer_wait_for_data(buffer, strmgr_data->reader_thread_id) == 1)
         {
             // terminate
-            printf("strgmgr_TERMINATED\n");
+            #ifdef DEBUG
+            printf("Storage Manager Terminated\n");
+            #endif
             return -1;
         };
 
@@ -234,12 +218,12 @@ int insert_sensor_from_sbuffer(STRGMGR_DATA *strmgr_data, sbuffer_t *buffer)
 
         dplist_node_t *current = iter->entry->list->head;
 
-        int count = sbuffer_get_entry_tbr(buffer, iter->entry, strmgr_data->reader_thread_id); // error if -1
+        int count = sbuffer_get_entry_tbr(buffer, iter->entry, strmgr_data->reader_thread_id); // get count of data elements to read 
         if (count == -1)
         { //
-#ifdef DEBUG
+            #ifdef DEBUG
             printf("ERROR COULDN't find tbr of datamgr reader thread\n");
-#endif
+            #endif
             continue;
         }
 
@@ -247,11 +231,11 @@ int insert_sensor_from_sbuffer(STRGMGR_DATA *strmgr_data, sbuffer_t *buffer)
         {
             sensor_data_t *data = (sensor_data_t *)current->element;
             int result = insert_sensor(strmgr_data, data->id, data->value, data->ts);
-            strmgr_data->fail_count -= result;
+            strmgr_data->fail_count -= result; // + 0 for success 
             if (result == DB_FAILUIRE)
             {
                 if (strmgr_data->fail_count == 3)
-                {                                     // failed three times
+                {                                  // failed three times
                     buffer->terminate_threads = 1; // exit
                     strmgr_data->DB_LOG_MSG.timestamp = time(0);
                     asprintf(&(strmgr_data->DB_LOG_MSG.message), "Actions failed to be sent through SQL connection. Exiting Now");
@@ -259,7 +243,7 @@ int insert_sensor_from_sbuffer(STRGMGR_DATA *strmgr_data, sbuffer_t *buffer)
                     free(strmgr_data->DB_LOG_MSG.message);
                     return -1;
                 }
-                sleep(1); // sleep for a period of time 1 sec in this case
+              
                 continue;
             }
 #ifdef DEBUG
@@ -269,7 +253,7 @@ int insert_sensor_from_sbuffer(STRGMGR_DATA *strmgr_data, sbuffer_t *buffer)
         }
 
         sbuffer_update_iter(buffer, iter, count);
-        strmgr_data->fail_count = 0;
+        strmgr_data->fail_count = 0; // reset fail count 
     }
 
     //terminated
@@ -474,7 +458,7 @@ logger_t *log_init()
 #ifdef DEBUG
             printf("failed to create log process\n");
 #endif
-            free(logger); 
+            free(logger);
             return NULL;
         }
     }
@@ -496,7 +480,7 @@ int log_start(logger_t *logger)
 
     char buffer[200];
     memset(buffer, 0, 200);
- 
+
     while (1)
     {
         int bytes = read(logger->r_pipefd, buffer, 200);

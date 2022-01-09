@@ -4,26 +4,28 @@
  * First Name: Abubakr 
  * Student Number: r0767316   
 */
-#include "datamgr.h" 
+#include "datamgr.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 
+#define DATAMGR_SEQUENCE_NO 3 
 
-void *datamgr_init(void* args){
-    datamgr_args* data_args = (datamgr_args*)args; 
-    DATAMGR_DATA* datamgr_data = malloc(sizeof(DATAMGR_DATA));
-    datamgr_data->log_message.timestamp = time(0) ; 
-    datamgr_data->log_message.sequence_number= 3 ; 
+void *datamgr_init(void *args)
+{
+    datamgr_args *data_args = (datamgr_args *)args;
+    DATAMGR_DATA *datamgr_data = malloc(sizeof(DATAMGR_DATA));
+    datamgr_data->log_message.timestamp = time(0);
+    datamgr_data->log_message.sequence_number = DATAMGR_SEQUENCE_NO;
 
     datamgr_data->datamgr_table = umap_create(datamgr_free_entry, datamgr_add_table_entry, datamgr_initialize_table, data_args->fp_sensor_map);
-    datamgr_data->pipefd = data_args->pipefd; 
-    datamgr_data->logger = data_args->logger; 
-    datamgr_data->reader_thread_id  = data_args->reader_thread_id; 
-    sbuffer_reader_subscribe(data_args->buffer,datamgr_data->reader_thread_id ); 
-    datamgr_listen_sbuffer(datamgr_data, data_args->buffer); 
-    datamgr_free(datamgr_data); 
-    return NULL; 
+    datamgr_data->pipefd = data_args->pipefd;
+    datamgr_data->logger = data_args->logger;
+    datamgr_data->reader_thread_id = data_args->reader_thread_id;
+    sbuffer_reader_subscribe(data_args->buffer, datamgr_data->reader_thread_id);
+    datamgr_listen_sbuffer(datamgr_data, data_args->buffer);
+    datamgr_free(datamgr_data);
+    return NULL;
 }
 
 /**
@@ -32,80 +34,83 @@ void *datamgr_init(void* args){
  * @param datamgr_data DATAMGR_DATA ptr 
  * @param buffer shared buffer ptr 
  */
-void datamgr_listen_sbuffer(DATAMGR_DATA* datamgr_data, sbuffer_t* buffer){
- 
+void datamgr_listen_sbuffer(DATAMGR_DATA *datamgr_data, sbuffer_t *buffer)
+{
 
-    while(buffer->terminate_threads == 0  ){ //not terminating threads or there are values still in sbuffer 
-        if(sbuffer_wait_for_data(buffer, datamgr_data->reader_thread_id)){
-            // terminate 
-            #ifdef DEBUG
-            printf("DATAMGR_TERMINATED\n"); 
-            #endif
-           
-            return ; 
-        }; 
+    while (buffer->terminate_threads == 0)
+    { //not terminating threads or there are values still in sbuffer
+        if (sbuffer_wait_for_data(buffer, datamgr_data->reader_thread_id))
+        {
+// terminate
+#ifdef DEBUG
+            printf("DATAMGR_TERMINATED\n");
+#endif
 
-        sbuffer_iterator* iter = sbuffer_iter(buffer, datamgr_data->reader_thread_id); 
-        
-        dplist_node_t* current = iter->entry->list->head;
+            return;
+        };
 
-        int count = sbuffer_get_entry_tbr(buffer, iter->entry, datamgr_data->reader_thread_id); // error if -1 
-        if(count ==-1 ){// 
-        #ifdef DEBUG
-        printf("ERROR COULDN't find tbr of datamgr reader thread\n") ; 
-        #endif
-        continue; 
+        sbuffer_iterator *iter = sbuffer_iter(buffer, datamgr_data->reader_thread_id);
+
+        dplist_node_t *current = iter->entry->list->head;
+
+        int count = sbuffer_get_entry_tbr(buffer, iter->entry, datamgr_data->reader_thread_id); // error if -1
+        if (count == -1)
+        { //
+#ifdef DEBUG
+            printf("ERROR COULDN't find tbr of datamgr reader thread\n");
+#endif
+            continue;
         }
 
-        for (int i = 0 ; i < count ; i ++){
-            sensor_data_t* data = (sensor_data_t*) current->element; 
-            if(umap_add_to_entry(datamgr_data->datamgr_table, current->element, data->id) ==-1){  // insert copy of data into datamgr 
-                // write to pipe with conn mgr 
-                sensor_id_t id= ((sensor_data_t*)current->element)->id; 
-                if(write(datamgr_data->pipefd, &id, sizeof(sensor_id_t)) < sizeof(sensor_id_t)){
-                    // log failed to communicate with connmgr 
+        for (int i = 0; i < count; i++)
+        {
+            sensor_data_t *data = (sensor_data_t *)current->element;
+            if (umap_add_to_entry(datamgr_data->datamgr_table, current->element, data->id) == -1)
+            { // insert copy of data into datamgr
+                // write to pipe with conn mgr
+                sensor_id_t id = ((sensor_data_t *)current->element)->id;
+                if (write(datamgr_data->pipefd, &id, sizeof(sensor_id_t)) < sizeof(sensor_id_t))
+                {
+                    // log failed to communicate with connmgr
                 }
-            
-            } 
-            else{
-                            datamgr_table_entry* entry = umap_get_entry_by_key(datamgr_data->datamgr_table , data->id); 
-            if(entry->current_average > SET_MAX_TEMP){
-                datamgr_data->log_message.timestamp = time(0);
-                asprintf(&(datamgr_data->log_message.message), "The sensor node wtih id: %hu reports it's too hot (running avg temperature = %f)", data->id, entry->current_average);
-                log_event( &(datamgr_data->log_message), datamgr_data->logger);
-                free(datamgr_data->log_message.message);
-                #ifdef DEBUG
-                fprintf(stderr, "Sensor %hu Exceeded max temp\n", data->id); 
-                fflush(stderr); 
-                #endif
             }
-            if(entry->current_average < SET_MIN_TEMP){
+            else
+            {
+                datamgr_table_entry *entry = umap_get_entry_by_key(datamgr_data->datamgr_table, data->id);
+                if (entry->current_average > SET_MAX_TEMP)
+                {
                     datamgr_data->log_message.timestamp = time(0);
-                asprintf(&(datamgr_data->log_message.message), "The sensor node wtih id: %hu reports it's too cold (running avg temperature = %f)", data->id, entry->current_average);
-                log_event( &(datamgr_data->log_message), datamgr_data->logger);
-                free(datamgr_data->log_message.message);
-                #ifdef DEBUG
-                fprintf(stderr, "Sensor %hu went below min temp\n", data->id); 
-                fflush(stderr); 
-                #endif
+                    asprintf(&(datamgr_data->log_message.message), "The sensor node wtih id: %hu reports it's too hot (running avg temperature = %f)", data->id, entry->current_average);
+                    log_event(&(datamgr_data->log_message), datamgr_data->logger);
+                    free(datamgr_data->log_message.message);
+#ifdef DEBUG
+                    fprintf(stderr, "Sensor %hu Exceeded max temp\n", data->id);
+                    fflush(stderr);
+#endif
+                }
+                if (entry->current_average < SET_MIN_TEMP)
+                {
+                    datamgr_data->log_message.timestamp = time(0);
+                    asprintf(&(datamgr_data->log_message.message), "The sensor node wtih id: %hu reports it's too cold (running avg temperature = %f)", data->id, entry->current_average);
+                    log_event(&(datamgr_data->log_message), datamgr_data->logger);
+                    free(datamgr_data->log_message.message);
+#ifdef DEBUG
+                    fprintf(stderr, "Sensor %hu went below min temp\n", data->id);
+                    fflush(stderr);
+#endif
+                }
             }
-            
-            }
-            current = current->next; 
-            // check current avg 
-
+            current = current->next;
+            // check current avg
         }
-        
-    //
-    
-        sbuffer_update_iter(buffer, iter, count); 
 
+        //
+
+        sbuffer_update_iter(buffer, iter, count);
     }
-    //terminated 
-    return ; 
-} 
-
-
+    //terminated
+    return;
+}
 
 /**
  *  This method holds the core functionality of your datamgr. It takes in 2 file pointers to the sensor files and parses them. 
@@ -141,12 +146,12 @@ void datamgr_listen_sbuffer(DATAMGR_DATA* datamgr_data, sbuffer_t* buffer){
  * This method should be called to clean up the datamgr, and to free all used memory. 
  * After this, any call to datamgr_get_room_id, datamgr_get_avg, datamgr_get_last_modified or datamgr_get_total_sensors will not return a valid result
  */
-void datamgr_free(DATAMGR_DATA* datamgr_data){
-    umap_destroy(datamgr_data->datamgr_table); 
-    
-    close(datamgr_data->pipefd ); 
-    free(datamgr_data); 
-    
+void datamgr_free(DATAMGR_DATA *datamgr_data)
+{
+    umap_destroy(datamgr_data->datamgr_table);
+
+    close(datamgr_data->pipefd);
+    free(datamgr_data);
 }
 
 /**
@@ -155,10 +160,11 @@ void datamgr_free(DATAMGR_DATA* datamgr_data){
  * \param sensor_id the sensor id to look for
  * \return the corresponding room id
  */
-uint16_t datamgr_get_room_id(DATAMGR_DATA* datamgr_data,sensor_id_t sensor_id){
-    datamgr_table_entry* ptr = (datamgr_table_entry*)umap_get_entry_by_key(datamgr_data->datamgr_table, sensor_id); 
-    ERROR_HANDLER(ptr == NULL && ptr->key != sensor_id,  "invalid sensorid ") ; 
-    return ptr->room_id; 
+uint16_t datamgr_get_room_id(DATAMGR_DATA *datamgr_data, sensor_id_t sensor_id)
+{
+    datamgr_table_entry *ptr = (datamgr_table_entry *)umap_get_entry_by_key(datamgr_data->datamgr_table, sensor_id);
+    ERROR_HANDLER(ptr == NULL && ptr->key != sensor_id, "invalid sensorid ");
+    return ptr->room_id;
 }
 
 /**
@@ -167,10 +173,11 @@ uint16_t datamgr_get_room_id(DATAMGR_DATA* datamgr_data,sensor_id_t sensor_id){
  * \param sensor_id the sensor id to look for
  * \return the running AVG of the given sensor
  */
-sensor_value_t datamgr_get_avg(DATAMGR_DATA* datamgr_data,sensor_id_t sensor_id){
-    datamgr_table_entry* ptr = (datamgr_table_entry*)umap_get_entry_by_key(datamgr_data->datamgr_table, sensor_id); 
-    ERROR_HANDLER(ptr == NULL && ptr->key != sensor_id,  "invalid sensorid ") ; 
-    return ptr->current_average; 
+sensor_value_t datamgr_get_avg(DATAMGR_DATA *datamgr_data, sensor_id_t sensor_id)
+{
+    datamgr_table_entry *ptr = (datamgr_table_entry *)umap_get_entry_by_key(datamgr_data->datamgr_table, sensor_id);
+    ERROR_HANDLER(ptr == NULL && ptr->key != sensor_id, "invalid sensorid ");
+    return ptr->current_average;
 }
 
 /**
@@ -179,84 +186,85 @@ sensor_value_t datamgr_get_avg(DATAMGR_DATA* datamgr_data,sensor_id_t sensor_id)
  * \param sensor_id the sensor id to look for
  * \return the last modified timestamp for the given sensor
  */
-time_t datamgr_get_last_modified(DATAMGR_DATA* datamgr_data,sensor_id_t sensor_id){
-     datamgr_table_entry* ptr = (datamgr_table_entry*)umap_get_entry_by_key(datamgr_data->datamgr_table, sensor_id); 
-    ERROR_HANDLER(ptr == NULL && ptr->key != sensor_id,  "invalid sensorid ") ; 
-    return ((sensor_data_t*)dpl_get_element_at_index(ptr->list, 0))->ts; 
+time_t datamgr_get_last_modified(DATAMGR_DATA *datamgr_data, sensor_id_t sensor_id)
+{
+    datamgr_table_entry *ptr = (datamgr_table_entry *)umap_get_entry_by_key(datamgr_data->datamgr_table, sensor_id);
+    ERROR_HANDLER(ptr == NULL && ptr->key != sensor_id, "invalid sensorid ");
+    return ((sensor_data_t *)dpl_get_element_at_index(ptr->list, 0))->ts;
 }
 
 /**
  *  Return the total amount of unique sensor ID's recorded by the datamgr
  *  \return the total amount of sensors
  */
-int datamgr_get_total_sensors(DATAMGR_DATA* datamgr_data){
-    return datamgr_data->datamgr_table->count; // this is the number of unique sensor id by sensor map; 
+int datamgr_get_total_sensors(DATAMGR_DATA *datamgr_data)
+{
+    return datamgr_data->datamgr_table->count; // this is the number of unique sensor id by sensor map;
 }
-
 
 /**
  * Hash table implementations and dp list related functions 
- * */ 
-void datamgr_element_free(void ** element)
+ * */
+void datamgr_element_free(void **element)
 {
-    sensor_data_t* data = *element; 
-    free(data); 
+    sensor_data_t *data = *element;
+    free(data);
 
-    *element = NULL ;
+    *element = NULL;
 }
-void* datamgr_element_copy(void * element)
+void *datamgr_element_copy(void *element)
 {
-    sensor_data_t* data = malloc(sizeof(sensor_data_t));
-    data->id = ((sensor_data_t*)element)->id; 
-    data->ts = ((sensor_data_t*)element)->ts; 
-    data->value = ((sensor_data_t*)element)->value; 
-    return data; 
+    sensor_data_t *data = malloc(sizeof(sensor_data_t));
+    data->id = ((sensor_data_t *)element)->id;
+    data->ts = ((sensor_data_t *)element)->ts;
+    data->value = ((sensor_data_t *)element)->value;
+    return data;
 }
-int datamgr_element_compare(void * x, void* y)
+int datamgr_element_compare(void *x, void *y)
 {
 
-    return 0; 
+    return 0;
 }
 
+void datamgr_initialize_table(void *map, void *file)
+{
 
-void datamgr_initialize_table(void* map, void* file){
+    // this function intializes the data structure that the datamgr uses
 
-    // this function intializes the data structure that the datamgr uses 
+    if (file == NULL)
+    {
 
-    if(file == NULL){
-
-        return ; 
+        return;
     }
-   FILE* fp_sensor_map = (FILE*) file; 
-   
-   char line[20] ; 
-   datamgr_table_entry* ptr ; 
-    
-    // add errror 
-   while( fgets( line, 10 , fp_sensor_map) != NULL){
-       uint16_t room_id, sensor_id; 
-     
-        
-       sscanf(line,"%hu %hu", &room_id, &sensor_id); 
- 
-        ptr = (datamgr_table_entry*)malloc(sizeof(datamgr_table_entry)); 
-        ptr->list = dpl_create(datamgr_element_copy,datamgr_element_free,datamgr_element_compare ); 
-        ptr->key = sensor_id; 
-        ptr->current_average = 0 ; // initial value
-        ptr->room_id = room_id; 
-        ptr->list_size = 0 ; 
-        umap_add_new((unordered_map*)map , (void*) ptr, ptr->key); 
-   }
+    FILE *fp_sensor_map = (FILE *)file;
 
+    char line[20];
+    datamgr_table_entry *ptr;
 
-    if(fclose(fp_sensor_map) != 0){
-        #ifdef DEBUG
-        fprintf(stderr, "File wasn't closed. "); 
-        fflush(stderr); 
-        #endif
-        return ; 
+    // add errror
+    while (fgets(line, 10, fp_sensor_map) != NULL)
+    {
+        uint16_t room_id, sensor_id;
+
+        sscanf(line, "%hu %hu", &room_id, &sensor_id);
+
+        ptr = (datamgr_table_entry *)malloc(sizeof(datamgr_table_entry));
+        ptr->list = dpl_create(datamgr_element_copy, datamgr_element_free, datamgr_element_compare);
+        ptr->key = sensor_id;
+        ptr->current_average = 0; // initial value
+        ptr->room_id = room_id;
+        ptr->list_size = 0;
+        umap_add_new((unordered_map *)map, (void *)ptr, ptr->key);
     }
-    
+
+    if (fclose(fp_sensor_map) != 0)
+    {
+#ifdef DEBUG
+        fprintf(stderr, "File wasn't closed. ");
+        fflush(stderr);
+#endif
+        return;
+    }
 }
 
 //for testing
@@ -266,31 +274,33 @@ void datamgr_initialize_table(void* map, void* file){
     return ((datamgr_table_entry*)entries[index])->list; 
 }*/
 
-int datamgr_add_table_entry(void* entry, void* args){
+int datamgr_add_table_entry(void *entry, void *args)
+{
     // No mutex needed because no
-    // steps: check if key exists if not create it 
-   
-    sensor_data_t* data = (sensor_data_t*) args ;
-    datamgr_table_entry* ptr = (datamgr_table_entry*)(entry); 
-           
-    if(ptr->list_size == 5){
-                dpl_remove_at_index(ptr->list, 4, 1); 
-                ptr->list_size--; 
-            }
-            dpl_insert_at_index(ptr->list,data, 0 ,1); // copied 
-            ptr->list_size++; 
-            ptr->current_average += (data->value - ptr->current_average)/ptr->list_size; 
-            return 0; // success 
-}
-void datamgr_free_entry(void*entry){
-    datamgr_table_entry*  ptr = (datamgr_table_entry*)entry; 
-    dpl_free(&(ptr->list), 1); 
+    // steps: check if key exists if not create it
 
-    ptr->list = NULL ;
-    
-    
-    free(ptr); 
-    entry=NULL; 
+    sensor_data_t *data = (sensor_data_t *)args;
+    datamgr_table_entry *ptr = (datamgr_table_entry *)(entry);
+
+    if (ptr->list_size == 5)
+    {
+        dpl_remove_at_index(ptr->list, 4, 1);
+        ptr->list_size--;
+    }
+    dpl_insert_at_index(ptr->list, data, 0, 1); // copied
+    ptr->list_size++;
+    ptr->current_average += (data->value - ptr->current_average) / ptr->list_size;
+    return 0; // success
+}
+void datamgr_free_entry(void *entry)
+{
+    datamgr_table_entry *ptr = (datamgr_table_entry *)entry;
+    dpl_free(&(ptr->list), 1);
+
+    ptr->list = NULL;
+
+    free(ptr);
+    entry = NULL;
 }
 
 /** 
@@ -298,71 +308,69 @@ void datamgr_free_entry(void*entry){
  * 
  * */
 
-unordered_map* umap_create(void (*free_entry)(void* entry),
-    int (*add_table_entry)(void* map, void* data), // 0 for success , -1 otherwise 
-    void (*initialize_table)(void* map, void*arg), void* arg){
+unordered_map *umap_create(void (*free_entry)(void *entry),
+                           int (*add_table_entry)(void *map, void *data), // 0 for success , -1 otherwise
+                           void (*initialize_table)(void *map, void *arg), void *arg)
+{
 
-    unordered_map* mp = malloc(sizeof(unordered_map));
-    
-    
+    unordered_map *mp = malloc(sizeof(unordered_map));
 
-    mp->entries = calloc(DEFAULT_UMAP_SIZE, sizeof(umap_entry)); 
+    mp->entries = calloc(DEFAULT_UMAP_SIZE, sizeof(umap_entry));
 
-    mp->add_table_entry = add_table_entry;  
-    mp->free_entry = free_entry; 
+    mp->add_table_entry = add_table_entry;
+    mp->free_entry = free_entry;
 
-    mp->capacity = DEFAULT_UMAP_SIZE; 
-    mp->count = 0; 
-    
+    mp->capacity = DEFAULT_UMAP_SIZE;
+    mp->count = 0;
 
-    
-    
-    
-    if(initialize_table != NULL){
-         mp->initialize_table = initialize_table; 
-        initialize_table((void*)mp,arg); 
+    if (initialize_table != NULL)
+    {
+        mp->initialize_table = initialize_table;
+        initialize_table((void *)mp, arg);
     }
- 
 
-    return mp; 
+    return mp;
 }
-void* umap_get_entry_by_index(unordered_map* map, uint32_t index){
+void *umap_get_entry_by_index(unordered_map *map, uint32_t index)
+{
 
-    return map->entries[index].entry; 
+    return map->entries[index].entry;
 }
 
-void umap_destroy(unordered_map* map){
+void umap_destroy(unordered_map *map)
+{
 
+    for (int i = 0; i < map->capacity; i++)
+    {
 
-    for(int i = 0; i < map->capacity; i++){
-        
-       if(map->entries[i].entry && map->free_entry != NULL){
-         
-           map->free_entry((void*)map->entries[i].entry);
-            
-        } 
-    
-  
-   }
+        if (map->entries[i].entry && map->free_entry != NULL)
+        {
 
-    free(map->entries); 
-    map->entries = NULL ; 
-    free(map); 
-    map = NULL; 
-}      
-
-int umap_add_to_entry(unordered_map*map,  void* data, int key){
-    void* entry = umap_get_entry_by_key(map, key ) ; 
-    if(entry == NULL){
-        // failure 
-        return -1 ; 
+            map->free_entry((void *)map->entries[i].entry);
+        }
     }
-    return map->add_table_entry(entry, data) ; 
+
+    free(map->entries);
+    map->entries = NULL;
+    free(map);
+    map = NULL;
 }
-uint32_t hash_key(uint32_t id, int capacity ){
+
+int umap_add_to_entry(unordered_map *map, void *data, int key)
+{
+    void *entry = umap_get_entry_by_key(map, key);
+    if (entry == NULL)
+    {
+        // failure
+        return -1;
+    }
+    return map->add_table_entry(entry, data);
+}
+uint32_t hash_key(uint32_t id, int capacity)
+{
     uint32_t hash = 2166136261; //32 bit offset
-    uint32_t FNV_prime = 16777619 ;
-    return ((hash*FNV_prime)^ id) % capacity;
+    uint32_t FNV_prime = 16777619;
+    return ((hash * FNV_prime) ^ id) % capacity;
     /*
    hash = offset_basis
     for each octet_of_data to be hashed
@@ -371,92 +379,104 @@ uint32_t hash_key(uint32_t id, int capacity ){
     return hash
 
 32 bit offset_basis = 2166136261
-32 bit FNV_prime = 224 + 28 + 0x93 = 16777619*/ 
+32 bit FNV_prime = 224 + 28 + 0x93 = 16777619*/
 }
 
-void* umap_get_entry_by_key(unordered_map* map, int key){ 
+void *umap_get_entry_by_key(unordered_map *map, int key)
+{
     uint32_t index = hash_key(key, map->capacity);
-    int init = index; 
-    while (map->entries[index].entry ) {
-        if (key == map->entries[index].key) {
+    int init = index;
+    while (map->entries[index].entry)
+    {
+        if (key == map->entries[index].key)
+        {
             // Found key, return value.
             return map->entries[index].entry;
         }
         // Key wasn't in this slot, move to next (linear probing).
         index++;
-        if (index >= map->capacity) {
+        if (index >= map->capacity)
+        {
             // At end of entries array, wrap around.
             index = 0;
         }
-        if(index == init){ 
-            return NULL; 
+        if (index == init)
+        {
+            return NULL;
         }
     }
     return NULL;
-
 }
-void umap_expand(unordered_map* map , float factor ){
-    if(factor <= 1 ){
-        return ; 
+void umap_expand(unordered_map *map, float factor)
+{
+    if (factor <= 1)
+    {
+        return;
     }
-    int new_size = (int) ( map->capacity * factor)  ;
-    if (map->capacity == new_size){
-        new_size++ ; 
+    int new_size = (int)(map->capacity * factor);
+    if (map->capacity == new_size)
+    {
+        new_size++;
     }
-  
-    // recalculate indices 
-    umap_entry* new_entries = calloc(new_size ,  sizeof(umap_entry)); 
-   
-    for (int i = 0 ;  i < map->count; i ++ ){
-            if(!(map->entries[i].entry)){
-                
-                continue; 
-            }
-            uint32_t index = hash_key(map->entries[i].key, new_size); 
-            while (new_entries[index].entry){
-               index ++ ; 
-               if ( index >= new_size )  { 
-                   index = 0 ; 
-               }
 
-            }
-            new_entries[index] = map->entries[i] ; 
-        
-    }
-    map->capacity = new_size; 
-    free(map->entries); // free old memory 
-    map->entries = new_entries; 
+    // recalculate indices
+    umap_entry *new_entries = calloc(new_size, sizeof(umap_entry));
 
+    for (int i = 0; i < map->count; i++)
+    {
+        if (!(map->entries[i].entry))
+        {
+
+            continue;
+        }
+        uint32_t index = hash_key(map->entries[i].key, new_size);
+        while (new_entries[index].entry)
+        {
+            index++;
+            if (index >= new_size)
+            {
+                index = 0;
+            }
+        }
+        new_entries[index] = map->entries[i];
+    }
+    map->capacity = new_size;
+    free(map->entries); // free old memory
+    map->entries = new_entries;
 }
 
-int umap_add_new(unordered_map* map , void* value , int key){
-    //assert(map != NULL); 
-    if (!value){
-        return -1; 
+int umap_add_new(unordered_map *map, void *value, int key)
+{
+    //assert(map != NULL);
+    if (!value)
+    {
+        return -1;
     }
-    
-    if ( map->count == map->capacity){ 
-         
-        umap_expand(map, 1.5) ; 
-    }
-    uint32_t index = hash_key(key , map->capacity); 
 
- 
-    while (map->entries[index].entry ) {
-        if (key == map->entries[index].key) {
-            //found empty position 
-            break; 
+    if (map->count == map->capacity)
+    {
+
+        umap_expand(map, 1.5);
+    }
+    uint32_t index = hash_key(key, map->capacity);
+
+    while (map->entries[index].entry)
+    {
+        if (key == map->entries[index].key)
+        {
+            //found empty position
+            break;
         }
         // Key wasn't in this slot, move to next (linear probing).
         index++;
-        if (index >= map->capacity) {
+        if (index >= map->capacity)
+        {
             // At end of entries array, wrap around.
             index = 0;
         }
-   
     }
-    map->entries[index].key = key; 
-    map->count++ ; 
-    map->entries[index].entry = value ; 
-    return 0 ;
+    map->entries[index].key = key;
+    map->count++;
+    map->entries[index].entry = value;
+    return 0;
 }
