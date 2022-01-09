@@ -10,11 +10,11 @@ sensor_gateway : main.c connmgr.c datamgr.c sensor_db.c sbuffer.c lib/libdplist.
 	@echo "$(TITLE_COLOR)\n***** CPPCHECK *****$(NO_COLOR)"
 	cppcheck --enable=all --suppress=missingIncludeSystem main.c connmgr.c datamgr.c sensor_db.c sbuffer.c
 	@echo "$(TITLE_COLOR)\n***** COMPILING sensor_gateway *****$(NO_COLOR)"
-	gcc  -c main.c    -g  -Wall -std=c11 -DDEBUG -DSET_MIN_TEMP=-5 -DSET_MAX_TEMP=40 -DTIMEOUT=5 -o main.o      -fdiagnostics-color=auto
-	gcc  -c connmgr.c  -g  -Wall -std=c11 -DDEBUG -DSET_MIN_TEMP=-5 -DSET_MAX_TEMP=40 -DTIMEOUT=5 -o connmgr.o   -fdiagnostics-color=auto
-	gcc  -c datamgr.c  -g -Wall -std=c11 -DDEBUG -DSET_MIN_TEMP=-5 -DSET_MAX_TEMP=40 -DTIMEOUT=5 -o datamgr.o   -fdiagnostics-color=auto
-	gcc  -c sensor_db.c -g -Wall -std=c11 -DDEBUG -DSET_MIN_TEMP=-5 -DSET_MAX_TEMP=40 -DTIMEOUT=5 -o sensor_db.o -fdiagnostics-color=auto
-	gcc  -c sbuffer.c   -g -Wall -std=c11 -DDEBUG -DSET_MIN_TEMP=-5 -DSET_MAX_TEMP=40 -DTIMEOUT=5 -o sbuffer.o   -fdiagnostics-color=auto
+	gcc  -c main.c    -g  -Wall -std=c11 -DDEBUG -DSET_MIN_TEMP=-5 -DSET_MAX_TEMP=40 -DTIMEOUT=20 -o main.o      -fdiagnostics-color=auto
+	gcc  -c connmgr.c  -g  -Wall -std=c11 -DDEBUG -DSET_MIN_TEMP=-5 -DSET_MAX_TEMP=40 -DTIMEOUT20 -o connmgr.o   -fdiagnostics-color=auto
+	gcc  -c datamgr.c  -g -Wall -std=c11 -DDEBUG -DSET_MIN_TEMP=-5 -DSET_MAX_TEMP=40 -DTIMEOUT=20 -o datamgr.o   -fdiagnostics-color=auto
+	gcc  -c sensor_db.c -g -Wall -std=c11 -DDEBUG -DSET_MIN_TEMP=-5 -DSET_MAX_TEMP=40 -DTIMEOUT=20 -o sensor_db.o -fdiagnostics-color=auto
+	gcc  -c sbuffer.c   -g -Wall -std=c11 -DDEBUG -DSET_MIN_TEMP=-5 -DSET_MAX_TEMP=40 -DTIMEOUT=20 -o sbuffer.o   -fdiagnostics-color=auto
 	@echo "$(TITLE_COLOR)\n***** LINKING sensor_gateway *****$(NO_COLOR)"
 	gcc  main.o connmgr.o datamgr.o sensor_db.o sbuffer.o -ldplist -ltcpsock -lpthread -o sensor_gateway -Wall -L./lib -Wl,-rpath=./lib -lsqlite3 -fdiagnostics-color=auto
 

@@ -77,7 +77,7 @@ void connmgr_listen_to_port(int port_number, CONNMGR_DATA* connmgr_data)
 
  
 
-    connmgr_data->pollfds = malloc(2 * sizeof(struct pollfd));
+    connmgr_data->pollfds = calloc(2 , sizeof(struct pollfd));
     if (tcp_passive_open(&connmgr_data->server, port_number) != TCP_NO_ERROR)
     {
         // log failed to setup connmgr_data->server and exit 

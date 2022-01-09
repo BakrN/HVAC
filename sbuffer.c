@@ -149,7 +149,7 @@ void sbuffer_reader_unsubscribe(sbuffer_t *buffer, int thread_id)
 
 int sbuffer_insert(sbuffer_t *buffer, sensor_data_t *data)
 {
-    umap_entry* entry = umap_get_entry_by_key( buffer->map, data->id); 
+    sbuffer_table_entry* entry = umap_get_entry_by_key( buffer->map, data->id); 
     if ( entry ){
 
     sbuffer_data args  ; 
@@ -161,12 +161,12 @@ int sbuffer_insert(sbuffer_t *buffer, sensor_data_t *data)
     }
     else{
         // create entry 
+        printf("New entry needed for %d\n", data->id); 
         sbuffer_table_entry *new_entry = malloc(sizeof(sbuffer_table_entry));
         new_entry->key = data->id;
         new_entry->list = dpl_create(NULL, sbuffer_listelement_free, NULL);
         new_entry->tbr_array_size = buffer->reader_thread_count; 
         dpl_insert_at_index(new_entry->list, (void *)data, 0, 0);
-
         new_entry->to_be_read = malloc(buffer->reader_thread_count * sizeof(sbuffer_entry_toberead *));
         for (int i = 0; i < buffer->reader_thread_count; i++)
         {
@@ -234,12 +234,12 @@ int sbuffer_add_table_entry(void *entry , void *arg)
         dpl_free(&ptr->list, 1);
         ptr->list = NULL;
         for(int i =0 ;i < ptr->tbr_array_size; i++ ){
-            //ptr->to_be_read[]
-            printf("%d\n", i ); 
+    
             free(ptr->to_be_read[i]) ; 
         }
         free(ptr->to_be_read); 
         free(ptr);
+        
         ptr = NULL;
     }
 
@@ -269,13 +269,13 @@ int sbuffer_add_table_entry(void *entry , void *arg)
              // iterator ptr needs data because it's current null 
     unordered_map* map = buffer->map; 
     
-        sbuffer_table_entry* entry; 
+        
         sbuffer_entry_toberead* tbr =NULL; //thread specific count
         
         for(int i =0; i < map->capacity; i++){
-         umap_entry* uentry = umap_get_entry_by_index(map, i); 
-        if(!uentry) continue; 
-        entry = (sbuffer_table_entry*) uentry->entry; 
+         sbuffer_table_entry* entry = umap_get_entry_by_index(map, i); 
+        if(!entry) continue; 
+  
 
         if(entry){ // sbuffer table entry not null 
             for (int j = 0; j < buffer->reader_thread_count; j++){

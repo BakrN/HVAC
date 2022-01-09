@@ -60,6 +60,7 @@
 	}
 
 void dpl_free(dplist_t **list, bool free_element) {
+	assert(list != NULL && *list != NULL); 
 	if(*list != NULL){
 		dplist_node_t* current = (*list)->head; 
 		if(current != NULL){
@@ -85,6 +86,7 @@ void dpl_free(dplist_t **list, bool free_element) {
 }
 
 dplist_t *dpl_insert_at_index(dplist_t *list, void *element, int index, bool insert_copy) {
+	assert(list!=NULL); 
 	if(list == NULL){
 		return NULL; 
 	}
@@ -162,6 +164,7 @@ dplist_t *dpl_insert_at_index(dplist_t *list, void *element, int index, bool ins
 
 dplist_t *dpl_remove_at_index(dplist_t *list, int index, bool free_element) {
 	 
+	assert(list!=NULL); 
 	if(list == NULL){return NULL;}
 	if(list->head == NULL){return list; }
 	
@@ -208,6 +211,8 @@ dplist_t *dpl_remove_at_index(dplist_t *list, int index, bool free_element) {
 }
 
 int dpl_size(dplist_t *list) {
+	
+	assert(list!=NULL); 
 	int size = 0; 
 	if (list == NULL){
 		return -1; 
@@ -227,6 +232,7 @@ int dpl_size(dplist_t *list) {
 
 void *dpl_get_element_at_index(dplist_t *list, int index) {
 
+	assert(list!=NULL); 
 	if(list == NULL || list->head == NULL){return NULL; }
 	if(index <= 0 ) {return list->head->element; } 
 	int size = dpl_size(list); 
@@ -246,6 +252,7 @@ void *dpl_get_element_at_index(dplist_t *list, int index) {
 }
 
 int dpl_get_index_of_element(dplist_t *list, void *element) {
+	assert(list!=NULL); 
 	int index = 0; 
 	// traverse list 
 	if(list == NULL){
@@ -266,6 +273,7 @@ int dpl_get_index_of_element(dplist_t *list, void *element) {
 }
 
 dplist_node_t *dpl_get_reference_at_index(dplist_t *list, int index) {
+	assert(list!=NULL); 
 	if(list == NULL || list->head == NULL){return NULL; }
 	dplist_node_t* current = list->head; 
 	
@@ -279,6 +287,7 @@ dplist_node_t *dpl_get_reference_at_index(dplist_t *list, int index) {
 }
 
 void *dpl_get_element_at_reference(dplist_t *list, dplist_node_t *reference) {
+	assert(list!=NULL); 
 	if(list == NULL || list->head == NULL || reference == NULL){
 		return NULL; }
 	dplist_node_t * current = list->head; 
@@ -296,6 +305,7 @@ void *dpl_get_element_at_reference(dplist_t *list, dplist_node_t *reference) {
 
 
 dplist_node_t *dpl_get_first_reference(dplist_t *list){
+	assert(list!=NULL); 
 	if(list==NULL || list->head == NULL){
 		return NULL; 
 	}
@@ -304,6 +314,7 @@ dplist_node_t *dpl_get_first_reference(dplist_t *list){
 
 
 dplist_node_t *dpl_get_last_reference(dplist_t *list){
+	assert(list!=NULL); 
 	if(list == NULL || list->head == NULL){return NULL;} 
 	dplist_node_t* current = list->head; 
 	while(current->next != NULL){
@@ -314,6 +325,7 @@ dplist_node_t *dpl_get_last_reference(dplist_t *list){
 
 
 dplist_node_t *dpl_get_next_reference(dplist_t *list, dplist_node_t *reference){
+	assert(list!=NULL); 
 	if(list== NULL ||list->head == NULL || reference == NULL){return NULL; } 
 	dplist_node_t* current = list->head; 
 	while(current != reference && current->next != NULL){
@@ -325,6 +337,7 @@ dplist_node_t *dpl_get_next_reference(dplist_t *list, dplist_node_t *reference){
 
 dplist_node_t *dpl_get_previous_reference(dplist_t *list, dplist_node_t *reference){
 
+	assert(list!=NULL); 
 	if(list==NULL || list->head == NULL || reference == NULL){return NULL; } 
 	dplist_node_t* current = list->head; 
 	while(current != reference && current->next != NULL){
@@ -335,6 +348,7 @@ dplist_node_t *dpl_get_previous_reference(dplist_t *list, dplist_node_t *referen
 
 
 dplist_node_t *dpl_get_reference_of_element(dplist_t *list, void *element){
+	assert(list!=NULL); 
 	if(list == NULL || list->head == NULL || !element ){return NULL;} 
 	dplist_node_t* current = list->head; 	
 	while(current != NULL){
@@ -350,6 +364,7 @@ dplist_node_t *dpl_get_reference_of_element(dplist_t *list, void *element){
 
 
 int dpl_get_index_of_reference(dplist_t *list, dplist_node_t *reference){
+	assert(list!=NULL); 
 	int count = 0; 
 	if(list == NULL || list->head == NULL || reference == NULL) {return -1; }
 	dplist_node_t* current = list->head; 
@@ -365,6 +380,7 @@ int dpl_get_index_of_reference(dplist_t *list, dplist_node_t *reference){
 
 
 dplist_t *dpl_insert_at_reference(dplist_t *list, void *element, dplist_node_t *reference, bool insert_copy){
+	assert(list!=NULL); 
 	// 1 way to do it get index of reference + insert index but it's 2x slower; 
 	if(list == NULL || list->head == NULL || reference == NULL){return NULL; } 
 	dplist_node_t* current = list->head; 
@@ -388,6 +404,7 @@ dplist_t *dpl_insert_at_reference(dplist_t *list, void *element, dplist_node_t *
 }
 
 	dplist_t *dpl_insert_sorted(dplist_t *list, void *element, bool insert_copy){
+	assert(list!=NULL); 
 		if(list == NULL) {return NULL;}
 		// ADD ELEMENT ANYWHERE
 		list = dpl_insert_at_index(list, element, 0, insert_copy); 
@@ -399,6 +416,7 @@ dplist_t *dpl_insert_at_reference(dplist_t *list, void *element, dplist_node_t *
 
 	
 	dplist_t *dpl_remove_at_reference(dplist_t *list, dplist_node_t *reference, bool free_element){
+	assert(list!=NULL); 
         if(list == NULL || list->head == NULL ){
             return NULL; }
 
@@ -437,6 +455,7 @@ dplist_t *dpl_insert_at_reference(dplist_t *list, void *element, dplist_node_t *
 
 
 	dplist_t *dpl_remove_element(dplist_t *list, void *element, bool free_element){
+	assert(list!=NULL); 
          
         if(list == NULL || list->head == NULL  ){
             return NULL; }
@@ -464,6 +483,7 @@ dplist_t *dpl_insert_at_reference(dplist_t *list, void *element, dplist_node_t *
 	}
 
 void  merge_sort(dplist_t* s_list, dplist_node_t* list) {
+	assert(list!=NULL); 
 	if(list == NULL ){return; }
     dplist_node_t* head; 
     head = list;  
@@ -477,6 +497,7 @@ void  merge_sort(dplist_t* s_list, dplist_node_t* list) {
     merge(s_list,a,b);
 } 
 dplist_node_t* merge(dplist_t* list, dplist_node_t*l1, dplist_node_t*l2){
+	assert(list!=NULL); 
   dplist_node_t* result = NULL; 
     if(l1 == NULL){return l2; } 
     else if (l2 == NULL){return l1; } 
@@ -515,6 +536,7 @@ void divide_linked_list(dplist_node_t* head, dplist_node_t** sub_list1, dplist_n
 
 
 	dplist_t* dpl_remove_end(dplist_t* list, bool free_element){
+	assert(list!=NULL); 
 
 		dplist_node_t* node = list->head; 
 		while(node->next != NULL){

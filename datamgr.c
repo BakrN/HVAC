@@ -68,7 +68,7 @@ void datamgr_listen_sbuffer(DATAMGR_DATA* datamgr_data, sbuffer_t* buffer){
             
             } 
             else{
-                            datamgr_table_entry* entry = umap_get_entry_by_key(datamgr_data->datamgr_table , data->id)->entry; 
+                            datamgr_table_entry* entry = umap_get_entry_by_key(datamgr_data->datamgr_table , data->id); 
             if(entry->current_average > SET_MAX_TEMP){
                 datamgr_data->log_message.timestamp = time(0);
                 asprintf(&(datamgr_data->log_message.message), "The sensor node wtih id: %hu reports it's too hot (running avg temperature = %f)", data->id, entry->current_average);
@@ -306,12 +306,8 @@ unordered_map* umap_create(void (*free_entry)(void* entry),
     
     
 
-    mp->entries = calloc(DEFAULT_UMAP_SIZE, sizeof(umap_entry*)); 
-    for (int i = 0 ; i < DEFAULT_UMAP_SIZE; i ++){
-        mp->entries[i] = calloc(1 , sizeof(umap_entry)); 
-        mp->entries[i]->entry = NULL ;
-        mp->entries[i]->key = -1; 
-    }
+    mp->entries = calloc(DEFAULT_UMAP_SIZE, sizeof(umap_entry)); 
+
     mp->add_table_entry = add_table_entry;  
     mp->free_entry = free_entry; 
 
@@ -330,37 +326,38 @@ unordered_map* umap_create(void (*free_entry)(void* entry),
 
     return mp; 
 }
-umap_entry* umap_get_entry_by_index(unordered_map* map, uint32_t index){
+void* umap_get_entry_by_index(unordered_map* map, uint32_t index){
 
-    return map->entries[index]; 
+    return map->entries[index].entry; 
 }
 
 void umap_destroy(unordered_map* map){
 
-    
+
     for(int i = 0; i < map->capacity; i++){
         
-       if(map->entries[i] && map->entries[i]->entry && map->free_entry != NULL){
+       if(map->entries[i].entry && map->free_entry != NULL){
          
-           map->free_entry((void*)map->entries[i]->entry);
+           map->free_entry((void*)map->entries[i].entry);
             
         } 
-        free( map->entries[i]) ; 
-        map->entries[i] = NULL;  
+    
+  
    }
 
     free(map->entries); 
+    map->entries = NULL ; 
     free(map); 
     map = NULL; 
 }      
 
 int umap_add_to_entry(unordered_map*map,  void* data, int key){
-    umap_entry* entry = umap_get_entry_by_key(map, key ) ; 
-    if(!entry){
+    void* entry = umap_get_entry_by_key(map, key ) ; 
+    if(entry == NULL){
         // failure 
         return -1 ; 
     }
-    return map->add_table_entry((void*)entry->entry, data) ; 
+    return map->add_table_entry(entry, data) ; 
 }
 uint32_t hash_key(uint32_t id, int capacity ){
     uint32_t hash = 2166136261; //32 bit offset
@@ -377,31 +374,26 @@ uint32_t hash_key(uint32_t id, int capacity ){
 32 bit FNV_prime = 224 + 28 + 0x93 = 16777619*/ 
 }
 
-umap_entry* umap_get_entry_by_key(unordered_map* map, int key){ 
+void* umap_get_entry_by_key(unordered_map* map, int key){ 
     uint32_t index = hash_key(key, map->capacity);
-    printf("map key %d , key: %d, index %u\n",map->entries[index]->key, key, index ); 
-    if (map->entries[index]->key == key){
-        printf("return value for key %d", key); 
-        return map->entries[index]; 
+    int init = index; 
+    while (map->entries[index].entry ) {
+        if (key == map->entries[index].key) {
+            // Found key, return value.
+            return map->entries[index].entry;
+        }
+        // Key wasn't in this slot, move to next (linear probing).
+        index++;
+        if (index >= map->capacity) {
+            // At end of entries array, wrap around.
+            index = 0;
+        }
+        if(index == init){ 
+            return NULL; 
+        }
     }
-    uint32_t init = index; 
-    while (map->entries[index] && map->entries[index]->key != key && map->entries[index]->key != -1){
-        
-        if(index == init){// looped around entire map
-            break; 
-        }
-        index++ ; 
-        if(index >= map->capacity){
-            index = 0 ; 
-        }
-        if(map->entries[index]->key == key){
+    return NULL;
 
-        printf("return value for key %d", key); 
-            return map->entries[index]; 
-        }
-    }
-    printf("return null\n"); 
-    return NULL ; 
 }
 void umap_expand(unordered_map* map , float factor ){
     if(factor <= 1 ){
@@ -413,15 +405,15 @@ void umap_expand(unordered_map* map , float factor ){
     }
   
     // recalculate indices 
-    umap_entry** new_entries = calloc(new_size ,  sizeof(umap_entry*)); 
+    umap_entry* new_entries = calloc(new_size ,  sizeof(umap_entry)); 
    
     for (int i = 0 ;  i < map->count; i ++ ){
-            if(map->entries[i]->key == -1){
-                free(map->entries[i]); 
+            if(!(map->entries[i].entry)){
+                
                 continue; 
             }
-            uint32_t index = hash_key(map->entries[i]->key, new_size); 
-            while (new_entries[index] != NULL){
+            uint32_t index = hash_key(map->entries[i].key, new_size); 
+            while (new_entries[index].entry){
                index ++ ; 
                if ( index >= new_size )  { 
                    index = 0 ; 
@@ -429,7 +421,6 @@ void umap_expand(unordered_map* map , float factor ){
 
             }
             new_entries[index] = map->entries[i] ; 
-            printf("move from %d to %u\n", i , index); 
         
     }
     map->capacity = new_size; 
@@ -447,34 +438,25 @@ int umap_add_new(unordered_map* map , void* value , int key){
     if ( map->count == map->capacity){ 
          
         umap_expand(map, 1.5) ; 
-        printf("Umap expanded from %d to %d\n", map->count, map->capacity);
     }
     uint32_t index = hash_key(key , map->capacity); 
 
-    while ( map->entries[index] && map->entries[index]->key != key && map->entries[index]->entry  ){
-        // existing entry in place of index 
-        
-        if (map->entries[index]->entry == NULL){
-             break ; 
-        }
-        if (index >= map->capacity){ // wrap back around 
-            index = 0 ; 
-        }
-        index ++ ; 
-    }
  
-    if(!map->entries[index]){
-        map->entries[index] = calloc(1,sizeof( umap_entry)); 
-        map->entries[index]->key = key; 
-        map->entries[index]->entry = value; 
-        map->count ++ ; 
-        printf("Added entirely new entry at index %u of key %d", index, key); 
-        return 0; 
-        
+    while (map->entries[index].entry ) {
+        if (key == map->entries[index].key) {
+            //found empty position 
+            break; 
+        }
+        // Key wasn't in this slot, move to next (linear probing).
+        index++;
+        if (index >= map->capacity) {
+            // At end of entries array, wrap around.
+            index = 0;
+        }
+   
     }
-    map->entries[index]->key = key; 
-    if(!map->entries[index]->entry) map->count++ ; 
-    map->entries[index]->entry = value ; 
-    printf("Added new entry to %d at index %d\n", key, index); 
+    map->entries[index].key = key; 
+    map->count++ ; 
+    map->entries[index].entry = value ; 
     return 0 ;
 }

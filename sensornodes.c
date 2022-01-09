@@ -9,8 +9,8 @@
 #include <unistd.h>
 #include "config.h"
 #include "lib/tcpsock.h"
-#define SENSOR_COUNT 5
-#define LOOPS 1300
+#define SENSOR_COUNT 200
+#define LOOPS 20
 // conditional compilation option to control the number of measurements this sensor node wil generate
 #if (LOOPS > 1)
 #define UPDATE(i) (i--)
@@ -48,7 +48,7 @@
 #define LOG_CLOSE(...) (void)0
 #endif
 
-#define INITIAL_TEMPERATURE    25
+#define INITIAL_TEMPERATURE    20
 #define TEMP_DEV       30    // max afwijking vorige temperatuur in 0.1 celsius
 
 
@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
     char server_ip[] = "127.0.0.1";
     tcpsock_t *client[SENSOR_COUNT];
     int i, bytes, sleep_time;
-    sleep_time = 3; 
+    sleep_time = 1; 
     int initial_temp; 
     LOG_OPEN();
 

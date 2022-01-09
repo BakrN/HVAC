@@ -12,7 +12,7 @@
 #include "config.h"
 #include <malloc.h>
 
-#define DEFAULT_UMAP_SIZE 3
+#define DEFAULT_UMAP_SIZE 5
 // This is a fixed size unordered map;  One for data mgr, one for shared buffer 
 
 
@@ -27,7 +27,7 @@ typedef struct {
     void* entry; 
 } umap_entry; 
 typedef struct {
-    umap_entry** entries; // a list of umap entry pointers 
+    umap_entry* entries; // a list of umap entry pointers 
     void (*free_entry)(void* entry); 
     int (*add_table_entry)(void* map, void* data); // 0 for success , -1 otherwise 
     void (*initialize_table)(void* map, void*arg); 
@@ -44,9 +44,9 @@ unordered_map* umap_create(void (*free_entry)(void* entry),
 void umap_destroy(unordered_map* map);
 uint32_t hash_key(uint32_t id, int capacity ); // FNV_PRIME
 int umap_add_to_entry(unordered_map*map, void* data, int key ); 
-umap_entry* umap_get_entry_by_index(unordered_map* map, uint32_t index); 
+void* umap_get_entry_by_index(unordered_map* map, uint32_t index); 
 
-umap_entry* umap_get_entry_by_key(unordered_map* map, int key); 
+void* umap_get_entry_by_key(unordered_map* map, int key); 
 
 int umap_add_new(unordered_map* map , void* value , int key);
 
